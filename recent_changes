@@ -2,11 +2,12 @@ Changes to SUNDIALS in release 4.0.0
 
 The direct and iterative linear solver interfaces in all SUNDIALS packages have
 been merged into a single unified linear solver interface to support any valid
-SUNLINSOL module. This includes the previous DIRECT and ITERATIVE types and the
+SUNLINSOL module. This includes the DIRECT and ITERATIVE types as well as the
 new MATRIX_ITERATIVE type. Details regarding how SUNDIALS packages utilize linear
 solvers of each type as well as discussion regarding intended use cases for
 user-supplied SUNLINSOL implementations are included in the SUNLINSOL chapter of
-the user guides.
+the user guides. All example programs have been updated to use the new unified
+interfaces.
 
 The unified interface is very similar to the previous DLS and SPILS interfaces.
 To minimize challenges in user migration to the unified linear solver interface,
@@ -22,7 +23,11 @@ where * is the name of the linear solver e.g., Dense, KLU, SPGMR, PCG, etc.
 Solver-specific ``set'' routine names have been similarly standardized. To
 minimize challenges in user migration to the new names, the previous routine
 names may still be used; these will be deprecated in future releases, so we
-recommend that users migrate to the new names soon.
+recommend that users migrate to the new names soon. All example programs have
+been updated to used the new naming convention.
+
+The SUNBandMatrix constructor has been simplified to remove the storage upper
+bandwidth argument.
 
 SUNDIALS integrators (ARKode, CVODE, CVODES, IDA, and IDAS) have been updated to
 utilize generic nonlinear solver modules through the SUNNONLINSOL API. This API
@@ -30,7 +35,8 @@ will ease the addition of new nonlinear solver options and allow for external or
 user-supplied nonlinear solvers. The SUNNONLINSOL API and provided SUNNONLINSOL
 modules are described in a new user guide chapter and follow the same object
 oriented design and implementation used by the NVECTOR, SUNMATRIX, and
-SUNLINSOL modules.
+SUNLINSOL modules. All integrator example programs have also been updated to
+used the new nonlinear solver API.
 
 Three fused vector operations and seven vector array operations have been added
 to the NVECTOR API. These optional operations are disabled by default and may be
@@ -57,7 +63,7 @@ Multiple updates to the CUDA NVECTOR were made:
     NVECTOR kernels. See the function N_VSetCudaStreams_Cuda.
 
   * Added N_VNewManaged_Cuda, N_VMakeManaged_Cuda, and N_VIsManagedMemory_Cuda
-    functions to accomodate using managed memory with the CUDA NVECTOR.
+    functions to accommodate using managed memory with the CUDA NVECTOR.
 
 Multiple updates to the RAJA NVECTOR were made:
 

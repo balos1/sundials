@@ -110,7 +110,7 @@ Changes from previous versions
 Changes in v3.0.2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There were no changes to ARKODE in this release.
+There were no changes to ARKode in this release.
 
 Changes in v3.0.1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

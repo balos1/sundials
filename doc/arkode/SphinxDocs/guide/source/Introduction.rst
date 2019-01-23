@@ -110,7 +110,7 @@ Changes from previous versions
 Changes in v3.0.2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There were no changes to ARKode in this release.
+Added information on how to contribute to {\sundials} and a contributing agreement.
 
 Changes in v3.0.1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

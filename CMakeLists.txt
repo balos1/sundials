@@ -121,11 +121,6 @@ INCLUDE(GNUInstallDirs)
 MARK_AS_ADVANCED(CLEAR CMAKE_INSTALL_LIBDIR)
 
 # ---------------------------------------------------------------
-# Check for deprecated SUNDIALS CMake options/variables
-# ---------------------------------------------------------------
-INCLUDE(SundialsDeprecated)
-
-# ---------------------------------------------------------------
 # Which modules to build?
 # ---------------------------------------------------------------
 

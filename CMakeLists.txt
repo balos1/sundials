@@ -102,14 +102,14 @@ SET(cpodeslib_SOVERSION "0")
 SET(nveclib_VERSION "5.0.0-dev.0")
 SET(nveclib_SOVERSION "5")
 
-SET(sunmatrixlib_VERSION "5.0.0-dev.0")
-SET(sunmatrixlib_SOVERSION "5")
+SET(sunmatrixlib_VERSION "3.0.0-dev.0")
+SET(sunmatrixlib_SOVERSION "3")
 
-SET(sunlinsollib_VERSION "5.0.0-dev.0")
-SET(sunlinsollib_SOVERSION "2")
+SET(sunlinsollib_VERSION "3.0.0-dev.0")
+SET(sunlinsollib_SOVERSION "3")
 
-SET(sunnonlinsollib_VERSION "5.0.0-dev.0")
-SET(sunnonlinsollib_SOVERSION "5")
+SET(sunnonlinsollib_VERSION "2.0.0-dev.0")
+SET(sunnonlinsollib_SOVERSION "2")
 
 # Specify the location of additional CMAKE modules
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/config)

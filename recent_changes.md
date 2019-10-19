@@ -43,7 +43,7 @@ OpenMP, CUDA). The implementation is accompanied by additions to user
 documentation and SUNDIALS examples.
 
 One new requried vector operation and ten new optional vector operations have
-been added to the NVECTOR API. The new required operation, N_VGetLenth, returns
+been added to the NVECTOR API. The new required operation, N_VGetLength, returns
 the global length of an N_Vector. The optional operations have been added to
 support the new NVECTOR_MPIMANYVECTOR implementation. The operation
 N_VGetCommunicator must be implemented by subvectors that are combined to create
@@ -253,6 +253,10 @@ absolute tolerance, or all entries of the vector-valued absolute tolerance
 array, are strictly positive. In this scenario ARKode steppers will remove
 at least one global reduction per time step.
 
+The ARKLS interface has been updated to only zero the Jacobian matrix before
+calling a user-supplied Jacobian evaluation function when the attached linear
+solver has type `SUNLINEARSOLVER_DIRECT`.
+
 A new linear solver interface function, `ARKLsLinSysFn`, was added as an
 alternative method for evaluating the linear systems M - gamma J and
 I - gamma J.
@@ -303,6 +307,10 @@ absolute tolerance, or all entries of the vector-valued absolute tolerance
 array, are strictly positive. In this scenario IDA and IDAS will remove
 at least one global reduction per time step.
 
+The IDALS interface has been updated to only zero the Jacobian matrix before
+calling a user-supplied Jacobian evaluation function when the attached linear
+solver has type SUNLINEARSOLVER_DIRECT.
+
 Added new Fortran 2003 interfaces to IDA and IDAS. These new interfaces were
 generated with SWIG-Fortran and provide a user an idiomatic Fortran 2003
 interface to most of the SUNDIALS C API.  See the section "Using IDA for Fortran
@@ -314,6 +322,15 @@ user guide for more details on how to use the interfaces.
 Fixed a bug in the KINSOL linear solver interface where the auxiliary scalar
 `sJpnorm` was not computed when necessary with the Picard iteration and the
 auxiliary scalar `sFdotJp` was unnecessarily computed in some cases.
+
+The KINLS interface has been updated to only zero the Jacobian matrix before
+calling a user-supplied Jacobian evaluation function when the attached linear
+solver has type SUNLINEARSOLVER_DIRECT.
+
+Added new Fortran 2003 interfaces to KINSOL. These new interfaces were
+generated with SWIG-Fortran and provide a user an idiomatic Fortran 2003
+interface to most of the SUNDIALS C API.  See the section "Using KINSOL for
+Fortran Applications" for more details on how to use the interfaces.
 
 
 

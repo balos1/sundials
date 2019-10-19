@@ -124,30 +124,25 @@ being built.
 \item Two new functions were added to aid in creating custom {\nvector} objects. The
 constructor \id{N\_VNewEmpty} allocates an ``empty'' generic {\nvector} with the
 object's content pointer and the function pointers in the operations structure
-initialized to NULL. When used in the constructor for custom objects this
+initialized to \id{NULL}. When used in the constructor for custom objects this
 function will ease the introduction of any new optional operations to the
 {\nvector} API by ensuring only required operations need to be set.
 Additionally, the function \id{N\_VCopyOps(w, v)} has been added to copy the
 operation function pointers between vector objects. When used in clone routines
 for custom vector objects these functions also will ease the introduction of
 any new optional operations to the {\nvector} API by ensuring all operations
-are copied when cloning objects.
+are copied when cloning objects. See \S\ref{ss:nvecutils} for more details.
 %
-\item Two new \id{N\_Vector} implementations, {\nvecmanyvector} and
+\item Two new {\nvector} implementations, {\nvecmanyvector} and
 {\nvecmpimanyvector}, have been created to support flexible partitioning
 of solution data among different processing elements (e.g., CPU + GPU) or for
-multi-physics problems that couple distinct MPI-based simulations together
-(see the \S\ref{ss:nvec_manyvector} and \S\ref{ss:nvec_mpimanyvector}for more
-details). This implementation is accompanied by additions to user documentation
-and {\sundials} examples.
-%
-\item An additional {\nvector} implementation, {\nvecmpiplusx}, has been created to
-support the MPI+X paradigm where X is a type of on-node parallelism
-(\textit{e.g.}, OpenMP, CUDA). The implementation is accompanied by additions to
-user documentation and {\sundials} examples.
+multi-physics problems that couple distinct MPI-based simulations together. This
+implementation is accompanied by additions to user documentation and {\sundials}
+examples. See \S\ref{ss:nvec_manyvector} and \S\ref{ss:nvec_mpimanyvector} for
+more details.
 %
 \item One new requried vector operation and ten new optional vector operations have
-been added to the {\nvector} API. The new required operation, \id{N\_VGetLenth},
+been added to the {\nvector} API. The new required operation, \id{N\_VGetLength},
 returns the global length of an \id{N\_Vector}. The optional operations have
 been added to support the new \newline\noindent
 {\nvecmpimanyvector} implementation. The
@@ -168,7 +163,14 @@ local reduction vector operations are
 \id{N\_VMinQuotientLocal}.
 If an {\nvector} implementation defines any of the local operations as
 \id{NULL}, then the {\nvecmpimanyvector} will call standard {\nvector}
-operations to complete the computation.
+operations to complete the computation. See \S\ref{ss:nveclocalops} for more
+details.
+%
+\item An additional {\nvector} implementation, {\nvecmpiplusx}, has been created to
+support the MPI+X paradigm where X is a type of on-node parallelism
+(\textit{e.g.}, OpenMP, CUDA). The implementation is accompanied by additions to
+user documentation and {\sundials} examples. See \S\ref{ss:nvec_mpiplusx} for
+more details.
 %
 \item The \id{*\_MPICuda} and \id{*\_MPIRaja} functions have been removed from the
 {\nveccuda} and {\nvecraja} implementations respectively. Accordingly, the
@@ -180,7 +182,7 @@ in conjunction with the {\nveccuda} or {\nvecraja} modules to replace the
 functionality. The necessary changes are minimal and should require few
 code modifications.
 %
-\item Fixed a memory leak in the {\nvecpetsc} clone function.
+\item Fixed a memory leak in the {\nvecpetsc} module clone function.
 %
 \item Made performance improvements to the {\nveccuda} module. Users who utilize a
 non-default stream should no longer see default stream synchronizations
@@ -188,7 +190,7 @@ after memory transfers.
 %
 \item Added a new constructor to the {\nveccuda} module that allows a user to provide
 custom allocate and free functions for the vector data array and internal
-reduction buffer.
+reduction buffer. See \S\ref{ss:nvec_cuda_functions} for more details.
 %
 \item Added new Fortran 2003 interfaces for most {\nvector} modules. See Chapter
 \ref{s:nvector} for more details on how to use the interfaces.
@@ -198,6 +200,7 @@ reduction buffer.
 \id{FN\_VSetVecAtIndexVectorArray}, and
 \id{FN\_VNewVectorArray},
 for working with \id{N\_Vector} arrays when using the Fortran 2003 interfaces.
+See \S\ref{ss:nvecutils} for more details.
 \end{itemize}
 
 \subsubsection*{SUNMatrix module changes}
@@ -213,19 +216,22 @@ Additionally, the function \id{SUNMatCopyOps(A, B)} has been added to copy the
 operation function pointers between matrix objects. When used in clone routines
 for custom matrix objects these functions also will ease the introduction of any
 new optional operations to the {\sunmatrix} API by ensuring all operations are
-copied when cloning objects.
+copied when cloning objects. See \S\ref{ss:sunmatrix_utilities} for more details.
 %
 \item A new operation, \id{SUNMatMatvecSetup}, was added to the {\sunmatrix} API.
 Users who have implemented custom {\sunmatrix} modules will need to at least
 update their code to set the corresponding \id{ops} structure member,
-\id{matvecsetup}, to \id{NULL}.
+\id{matvecsetup}, to \id{NULL}. See \S\ref{ss:sunmatrix_functions} for more
+details.
 %
 \item The generic {\sunmatrix} API now defines error codes to be returned by
 {\sunmatrix} operations. Operations which return an integer flag indiciating
-success/failure may return different values than previously.
+success/failure may return different values than previously. See
+\S\ref{ss:sunmatrix_ReturnCodes} for more details.
 %
 \item A new {\sunmatrix} (and {\sunlinsol}) implementation was added to
-facilitate the use of the SuperLU\_DIST library with {\sundials}.
+facilitate the use of the SuperLU\_DIST library with {\sundials}. See
+\S\ref{ss:sunmat_slunrloc} for more details.
 %
 \item Added new Fortran 2003 interfaces for most {\sunmatrix} modules. See Chapter
 \ref{s:sunmatrix} for more details on how to use the interfaces.
@@ -240,7 +246,7 @@ The constructor \id{SUNLinSolNewEmpty} allocates an ``empty'' generic
 in the operations structure initialized to \id{NULL}. When used in the
 constructor for custom objects this function will ease the introduction of any
 new optional operations to the {\sunlinsol} API by ensuring only required
-operations need to be set.
+operations need to be set. See \S\ref{ss:sunlinsol_custom} for more details.
 %
 \item The return type of the {\sunlinsol} API function \id{SUNLinSolLastFlag}
 has changed from \id{long int} to \id{sunindextype} to be consistent with the
@@ -255,18 +261,20 @@ linear solver module.
 functions optional.
 %
 \item A new {\sunlinsol} (and {\sunmatrix}) implementation was added to
-facilitate the use of the SuperLU\_DIST library with {\sundials}.
+facilitate the use of the SuperLU\_DIST library with {\sundials}. See
+\S\ref{ss:sunlinsol_sludist} for more details.
 %
 \item Added a new {\sunlinsol} implementation,
 \id{SUNLinearSolver\_cuSolverSp\_batchQR}, which leverages the NVIDIA cuSOLVER
 sparse batched QR method for efficiently solving block diagonal linear systems
-on NVIDIA GPUs.
+on NVIDIA GPUs. See \S\ref{ss:sunlinsol_cuspbqr} for more details.
 %
 \item Added three new accessor functions to the {\sunlinsolklu} module,
 \id{SUNLinSol\_KLUGetSymbolic},
 \id{SUNLinSol\_KLUGetNumeric}, and
 \id{SUNLinSol\_KLUGetCommon},
-to provide user access to the underlying KLU solver structures.
+to provide user access to the underlying KLU solver structures. See
+\S\ref{ss:sunlinsol_klu_functions} for more details.
 %
 \item Added new Fortran 2003 interfaces for most {\sunlinsol} modules. See
 Chapter \ref{s:sunlinsol} for more details on how to use the interfaces.
@@ -281,7 +289,8 @@ generic {\sunnonlinsol} with the object's content pointer and the function
 pointers in the operations structure initialized to \id{NULL}. When used in the
 constructor for custom objects this function will ease the introduction of any
 new optional operations to the {\sunnonlinsol} API by ensuring only
-required operations need to be set.
+required operations need to be set. See \S\ref{ss:sunnonlinsol_custom} for more
+details.
 %
 \item To facilitate the use of user supplied nonlinear solver convergence test
 functions the \newline\noindent
@@ -295,11 +304,13 @@ function in the {\sunnonlinsol} have been chagned to be the predicted
 state and the initial guess for the correction to that state. Additionally,
 the definitions of \id{SUNNonlinSolLSetupFn} and \id{SUNNonlinSolLSolveFn} in
 the {\sunnonlinsol} API have been updated to remove unused input
-parameters. For more information on the nonlinear system formulation and the
-API functions see Chapter \ref{c:sunnonlinsol}.
+parameters. For more information on the nonlinear system formulation see
+\S\ref{s:sunnonlinsol_interface} and for more details on the API functions see
+Chapter \ref{c:sunnonlinsol}.
 %
 \item Added a new {\sunnonlinsol} implementation, {\sunnonlinsolpetsc}, which
-interfaces to the PETSc SNES nonlinear solver API.
+interfaces to the PETSc SNES nonlinear solver API. See
+\S\ref{s:sunnonlinsolpetsc} for more details.
 %
 \item Added new Fortran 2003 interfaces for most {\sunnonlinsol} modules. See
 Chapter \ref{c:sunnonlinsol} for more details on how to use the interfaces.

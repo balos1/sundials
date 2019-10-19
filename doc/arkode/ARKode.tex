@@ -302,58 +302,10 @@ preconditioner routines.
 
 \subsection{Changes in v4.0.0}
 \label{Introduction:changes-in-v4-0-0}
-The return type of the SUNLinearSolver API function
-{\hyperref[sunlinsol/SUNLinSol_API:c.SUNLinSolLastFlag]{\emph{\code{SUNLinSolLastFlag()}}}} has changed from \code{long int} to \code{sunindextype}
-to be consistent with the type used to store row indices in dense and
-banded linear solver modules.
+\textbf{Build system changes}
 
-Added Fortran 2003 interfaces to the \code{NVECTOR\_MANYVECTOR},
-\code{NVECTOR\_MPIMANYVECTOR} and \code{NVECTOR\_MPIPLUSX}.
-
-Added three new utility N\_Vector functions, \code{FN\_VGetVecAtIndexVectorArray},
-\code{FN\_VSetVecAtIndexVectorArray}, and \code{FN\_VNewVectorArray}, that are for working
-with N\_Vector arrays when using the Fortran 2003 interfaces.
-
-Added a new \code{SUNNonlinearSolver} implementation, \code{SUNNonlinsol\_PetscSNES},
-which interfaces to the PETSc SNES nonlinear solver API.
-
-To facilitate the use of user supplied nonlinear solver convergence test
-functions the {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolSetConvTestFn]{\emph{\code{SUNNonlinSolSetConvTestFn()}}}} function in the
-SUNNonlinearSolver API has been updated to take a \code{void*} data pointer as
-input. The supplied data pointer will be passed to the nonlinear solver
-convergence test function on each call.
-
-The definitions of \code{SUNNonlinSolLSetupFn()} and
-\code{SUNNonlinSolLSolveFn()} in the SUNNonlinearSolver API have been updated
-to remove unused input parameters.
-
-Support for optional inequality constraints on individual components of the
-solution vector has been added the ARKode ERKStep and ARKStep modules. See
-the descriptions of {\hyperref[ERKStep_c_interface/User_callable:c.ERKStepSetConstraints]{\emph{\code{ERKStepSetConstraints()}}}} and
-{\hyperref[ARKStep_c_interface/User_callable:c.ARKStepSetConstraints]{\emph{\code{ARKStepSetConstraints()}}}} for more details. Note that enabling
-constraint handling requires the NVECTOR operations {\hyperref[nvectors/NVector_Operations:c.N_VMinQuotient]{\emph{\code{N\_VMinQuotient()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VConstrMask]{\emph{\code{N\_VConstrMask()}}}}, and {\hyperref[nvectors/NVector_Operations:c.N_VCompare]{\emph{\code{N\_VCompare()}}}} that were not previously
-required by ARKode.
-
-Fixed a bug that would result in a ``too much accuracy requested'' error when
-using fixed time step sizes with explicit methods in some cases.
-
-
-\subsection{Changes in v4.0.0-dev.2}
-\label{Introduction:changes-in-v4-0-0-dev-2}
-Added a new optional operation to the SUNLINEARSOLVER API, \code{SUNLinSolGetID},
-that returns a \code{SUNLinearSolver\_ID} for identifying the linear solver module.
-
-Made performance improvements to the CUDA NVECTOR. Users who utilize a non
--default stream should no longer see default stream synchronizations after
-memory transfers.
-
-Added a new constructor to the CUDA NVECTOR that allows a user to provide
-custom allocate and free functions for the vector data array and internal
-reduction buffer.
-
-Increased the minimum required CMake version to 3.5 for most SUNDIALS configurations,
-and 3.10 when CUDA or OpenMP with device offloading are enabled.
+Increased the minimum required CMake version to 3.5 for most SUNDIALS
+configurations, and 3.10 when CUDA or OpenMP with device offloading are enabled.
 
 The CMake option \code{BLAS\_ENABLE} and the variable \code{BLAS\_LIBRARIES} have been
 removed to simplify builds as SUNDIALS packages do not use BLAS directly. For
@@ -361,22 +313,137 @@ third party libraries that require linking to BLAS, the path to the BLAS
 library should be included in the \code{\_LIBRARIES} variable for the third party
 library e.g., \code{SUPERLUDIST\_LIBRARIES} when enabling SuperLU\_DIST.
 
-Fixed a bug in the ARKStep time-stepping module that would result in an infinite
-loop if the nonlinear solver failed to converge more than the maximum allowed times
-during a single step.
+Fixed a bug in the build system that prevented the PThreads NVECTOR module from
+being built.
 
-Added two new `Get' functions to ARKStep, {\hyperref[sunnonlinsol/ARKode_Interface:c.ARKStepGetCurrentGamma]{\emph{\code{ARKStepGetCurrentGamma()}}}},
-and {\hyperref[sunnonlinsol/ARKode_Interface:c.ARKStepGetCurrentState]{\emph{\code{ARKStepGetCurrentState()}}}}, that may be useful to users who choose
-to provide their own nonlinear solver implementation.
+\textbf{NVECTOR module changes}
 
-Add two new `Set' functions to MRIStep, {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepSetPreInnerFn]{\emph{\code{MRIStepSetPreInnerFn()}}}} and
-{\hyperref[MRIStep_c_interface/User_callable:c.MRIStepSetPostInnerFn]{\emph{\code{MRIStepSetPostInnerFn()}}}} for performing communication or memory
-transfers needed before or after the inner integration.
+Two new functions were added to aid in creating custom NVECTOR objects. The
+constructor {\hyperref[nvectors/NVector_Description:c.N_VNewEmpty]{\emph{\code{N\_VNewEmpty()}}}} allocates an ``empty'' generic NVECTOR with
+the object's content pointer and the function pointers in the operations
+structure initialized to \code{NULL}. When used in the constructor for custom
+objects this function will ease the introduction of any new optional operations
+to the NVECTOR API by ensuring only required operations need to be set.
+Additionally, the function {\hyperref[nvectors/NVector_Description:c.N_VCopyOps]{\emph{\code{N\_VCopyOps()}}}} has been added to copy the
+operation function pointers between vector objects. When used in clone routines
+for custom vector objects these functions also will ease the introduction of
+any new optional operations to the NVECTOR API by ensuring all operations
+are copied when cloning objects.
 
-The reinitialization functions {\hyperref[ERKStep_c_interface/User_callable:c.ERKStepReInit]{\emph{\code{ERKStepReInit()}}}},
-{\hyperref[ARKStep_c_interface/User_callable:c.ARKStepReInit]{\emph{\code{ARKStepReInit()}}}}, and {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepReInit]{\emph{\code{MRIStepReInit()}}}} have been updated to
-retain the minimum and maxiumum step size values from before reinitialization
-rather than resetting them to the default values.
+Two new NVECTOR implementations, NVECTOR\_MANYVECTOR and
+NVECTOR\_MPIMANYVECTOR, have been created to support flexible partitioning
+of solution data among different processing elements (e.g., CPU + GPU) or for
+multi-physics problems that couple distinct MPI-based simulations together. This
+implementation is accompanied by additions to user documentation and SUNDIALS
+examples.
+
+One new requried vector operation and ten new optional vector operations have
+been added to the NVECTOR API. The new required operation, {\hyperref[nvectors/NVector_Operations:c.N_VGetLength]{\emph{\code{N\_VGetLength()}}}},
+returns the global length of an \code{N\_Vector}. The optional operations have
+been added to support the new NVECTOR\_MPIMANYVECTOR implementation. The
+operation {\hyperref[nvectors/NVector_Operations:c.N_VGetCommunicator]{\emph{\code{N\_VGetCommunicator()}}}} must be implemented by subvectors that are
+combined to create an NVECTOR\_MPIMANYVECTOR, but is not used outside of
+this context. The remaining nine operations are optional local reduction
+operations intended to eliminate unnecessary latency when performing vector
+reduction operations (norms, etc.) on distributed memory systems. The optional
+local reduction vector operations are
+{\hyperref[nvectors/NVector_Operations:c.N_VDotProdLocal]{\emph{\code{N\_VDotProdLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VMaxNormLocal]{\emph{\code{N\_VMaxNormLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VMinLocal]{\emph{\code{N\_VMinLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VL1NormLocal]{\emph{\code{N\_VL1NormLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VWSqrSumLocal]{\emph{\code{N\_VWSqrSumLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VWSqrSumMaskLocal]{\emph{\code{N\_VWSqrSumMaskLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VInvTestLocal]{\emph{\code{N\_VInvTestLocal()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VConstrMaskLocal]{\emph{\code{N\_VConstrMaskLocal()}}}}, and
+{\hyperref[nvectors/NVector_Operations:c.N_VMinQuotientLocal]{\emph{\code{N\_VMinQuotientLocal()}}}}.
+If an NVECTOR implementation defines any of the local operations as
+\code{NULL}, then the NVECTOR\_MPIMANYVECTOR will call standard NVECTOR
+operations to complete the computation.
+
+An additional NVECTOR implementation, NVECTOR\_MPIPLUSX, has been created to
+support the MPI+X paradigm where X is a type of on-node parallelism
+(\emph{e.g.}, OpenMP, CUDA). The implementation is accompanied by additions to
+user documentation and SUNDIALS examples.
+
+The \code{*\_MPICuda} and \code{*\_MPIRaja} functions have been removed from the
+NVECTOR\_CUDA and NVECTOR\_RAJA implementations respectively. Accordingly, the
+\code{nvector\_mpicuda.h}, \code{nvector\_mpiraja.h}, \code{libsundials\_nvecmpicuda.lib},
+and \code{libsundials\_nvecmpicudaraja.lib} files have been removed. Users should
+use the NVECTOR\_MPIPLUSX module coupled in conjunction with the NVECTOR\_CUDA
+or NVECTOR\_RAJA modules to replace the functionality. The necessary changes are
+minimal and should require few code modifications.
+
+Fixed a memory leak in the NVECTOR\_PETSC module clone function.
+
+Made performance improvements to the NVECTOR\_CUDA module. Users who utilize a
+non-default stream should no longer see default stream synchronizations
+after memory transfers.
+
+Added a new constructor to the NVECTOR\_CUDA module that allows a user to provide
+custom allocate and free functions for the vector data array and internal
+reduction buffer.
+
+Added new Fortran 2003 interfaces for most NVECTOR modules. See the
+{\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} section for more details.
+
+Added three new NVECTOR utility functions,
+\code{N\_VGetVecAtIndexVectorArray()}
+\code{N\_VSetVecAtIndexVectorArray()}, and
+\code{N\_VNewVectorArray()},
+for working with \code{N\_Vector} arrays when using the Fortran 2003 interfaces.
+
+\textbf{SUNMatrix module changes}
+
+Two new functions were added to aid in creating custom SUNMATRIX objects. The
+constructor {\hyperref[sunmatrix/SUNMatrix_Description:c.SUNMatNewEmpty]{\emph{\code{SUNMatNewEmpty()}}}} allocates an ``empty'' generic SUNMATRIX with
+the object's content pointer and the function pointers in the operations
+structure initialized to \code{NULL}. When used in the constructor for custom
+objects this function will ease the introduction of any new optional operations
+to the SUNMATRIX API by ensuring only required operations need to be set.
+Additionally, the function {\hyperref[sunmatrix/SUNMatrix_Description:c.SUNMatCopyOps]{\emph{\code{SUNMatCopyOps()}}}} has been added to copy the
+operation function pointers between matrix objects. When used in clone routines
+for custom matrix objects these functions also will ease the introduction of any
+new optional operations to the SUNMATRIX API by ensuring all operations are
+copied when cloning objects.
+
+A new operation, {\hyperref[sunmatrix/SUNMatrix_Operations:c.SUNMatMatvecSetup]{\emph{\code{SUNMatMatvecSetup()}}}}, was added to the SUNMATRIX API.
+Users who have implemented custom SUNMATRIX modules will need to at least
+update their code to set the corresponding \code{ops} structure member,
+\code{matvecsetup}, to \code{NULL}.
+
+The generic SUNMATRIX API now defines error codes to be returned by
+SUNMATRIX operations. Operations which return an integer flag indiciating
+success/failure may return different values than previously.
+
+A new SUNMATRIX (and SUNLINEARSOLVER) implementation was added to
+facilitate the use of the SuperLU\_DIST library with SUNDIALS.
+
+Added new Fortran 2003 interfaces for most SUNMATRIX modules. See the
+{\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} section for more details.
+
+\textbf{SUNLinearSolver module changes}
+
+A new function was added to aid in creating custom SUNLINEARSOLVER objects.
+The constructor {\hyperref[sunlinsol/SUNLinSol_API:c.SUNLinSolNewEmpty]{\emph{\code{SUNLinSolNewEmpty()}}}} allocates an ``empty'' generic
+SUNLINEARSOLVER with the object's content pointer and the function pointers
+in the operations structure initialized to \code{NULL}. When used in the
+constructor for custom objects this function will ease the introduction of any
+new optional operations to the SUNLINEARSOLVER API by ensuring only required
+operations need to be set.
+
+The return type of the SUNLINEARSOLVER API function {\hyperref[sunlinsol/SUNLinSol_API:c.SUNLinSolLastFlag]{\emph{\code{SUNLinSolLastFlag()}}}}
+has changed from \code{long int} to \code{sunindextype} to be consistent with the
+type used to store row indices in dense and banded linear solver modules.
+
+Added a new optional operation to the SUNLINEARSOLVER API,
+{\hyperref[sunlinsol/SUNLinSol_API:c.SUNLinSolGetID]{\emph{\code{SUNLinSolGetID()}}}}, that returns a \code{SUNLinearSolver\_ID} for identifying
+the linear solver module.
+
+The SUNLINEARSOLVER API has been updated to make the initialize and setup
+functions optional.
+
+A new SUNLINEARSOLVER (and SUNMATRIX) implementation was added to
+facilitate the use of the SuperLU\_DIST library with SUNDIALS.
 
 Added a new SUNLinearSolver implementation, \code{SUNLinearSolver\_cuSolverSp\_batchQR},
 which leverages the NVIDIA cuSOLVER sparse batched QR method for efficiently
@@ -387,35 +454,51 @@ Added three new accessor functions to the SUNLinSol\_KLU module,
 {\hyperref[sunlinsol/SUNLinSol_KLU:c.SUNLinSol_KLUGetCommon]{\emph{\code{SUNLinSol\_KLUGetCommon()}}}}, to provide user access to the underlying
 KLU solver structures.
 
+Added new Fortran 2003 interfaces for most SUNLINEARSOLVER modules. See the
+{\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} section for more details.
 
-\subsection{Changes in v4.0.0-dev.1}
-\label{Introduction:changes-in-v4-0-0-dev-1}
-Several new functions were added to aid in creating custom NVECTOR, SUNMATRIX,
-SUNLINEARSOLVER, and SUNNONLINEARSOLVER objects. The constructors
-{\hyperref[nvectors/NVector_Description:c.N_VNewEmpty]{\emph{\code{N\_VNewEmpty()}}}}, {\hyperref[sunmatrix/SUNMatrix_Description:c.SUNMatNewEmpty]{\emph{\code{SUNMatNewEmpty()}}}},
-{\hyperref[sunlinsol/SUNLinSol_API:c.SUNLinSolNewEmpty]{\emph{\code{SUNLinSolNewEmpty()}}}}, and {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolNewEmpty]{\emph{\code{SUNNonlinSolNewEmpty()}}}} allocate
-``empty'' generic NVECTOR, SUNMATRIX, SUNLINEARSOLVER, and SUNNONLINEARSOLVER
-objects respectively with the object's content pointer and the function pointers
-in the operations structure initialized to \code{NULL}. When used in the
-constructor for custom objects these functions will ease the introduction of any
-new optional operations to the NVECTOR, SUNMATRIX, SUNLINEARSOLVER, or
-SUNNONLINEARSOLVER APIs by ensuring only required operations need to be
-set. Additionally, the functions {\hyperref[nvectors/NVector_Description:c.N_VCopyOps]{\emph{\code{N\_VCopyOps()}}}} and
-{\hyperref[sunmatrix/SUNMatrix_Description:c.SUNMatCopyOps]{\emph{\code{SUNMatCopyOps()}}}} have been added to copy the operation function
-pointers between vector and matrix objects respectively. When used in clone
-routines for custom vector and matrix objects these functions also will ease the
-introduction of any new optional operations to the NVECTOR or SUNMATRIX APIs by
-ensuring all operations are copied when cloning objects.
+\textbf{SUNNonlinearSolver module changes}
 
-The SUNLinearSolver API has been updated to make the initialize and setup
-functions optional.
+A new function was added to aid in creating custom SUNNONLINEARSOLVER
+objects. The constructor {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolNewEmpty]{\emph{\code{SUNNonlinSolNewEmpty()}}}} allocates an ``empty''
+generic SUNNONLINEARSOLVER with the object's content pointer and the function
+pointers in the operations structure initialized to \code{NULL}. When used in the
+constructor for custom objects this function will ease the introduction of any
+new optional operations to the SUNNONLINEARSOLVER API by ensuring only
+required operations need to be set.
 
-A new linear solver interface function {\hyperref[ARKStep_c_interface/User_supplied:c.ARKLsLinSysFn]{\emph{\code{ARKLsLinSysFn()}}}} was added as an
-alternative method for evaluating the linear system \(A = M - \gamma J\).
+To facilitate the use of user supplied nonlinear solver convergence test
+functions the {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolSetConvTestFn]{\emph{\code{SUNNonlinSolSetConvTestFn()}}}} function in the
+SUNNONLINEARSOLVER API has been updated to take a \code{void*} data pointer as
+input. The supplied data pointer will be passed to the nonlinear solver
+convergence test function on each call.
 
-The ARKLS interface has been updated to only zero the Jacobian matrix before
-calling a user-supplied Jacobian evaluation function when the attached linear
-solver has type \code{SUNLINEARSOLVER\_DIRECT}.
+The inputs values passed to the first two inputs of the {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolSolve]{\emph{\code{SUNNonlinSolSolve()}}}}
+function in the SUNNONLINEARSOLVER have been chagned to be the predicted
+state and the initial guess for the correction to that state. Additionally,
+the definitions of {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolLSetupFn]{\emph{\code{SUNNonlinSolLSetupFn}}}} and {\hyperref[sunnonlinsol/SUNNonlinSol_API:c.SUNNonlinSolLSolveFn]{\emph{\code{SUNNonlinSolLSolveFn}}}}
+in the SUNNONLINEARSOLVER API have been updated to remove unused input
+parameters.
+
+Added a new \code{SUNNonlinearSolver} implementation, \code{SUNNonlinsol\_PetscSNES},
+which interfaces to the PETSc SNES nonlinear solver API.
+
+Added new Fortran 2003 interfaces for most SUNNONLINEARSOLVER modules. See the
+{\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} section for more details.
+
+\textbf{ARKode changes}
+
+The MRIStep module has been updated to support explicit, implicit, or IMEX
+methods as the fast integrator using the ARKStep module. As a result some
+function signatures have been changed including {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepCreate]{\emph{\code{MRIStepCreate()}}}} which
+now takes an ARKStep memory structure for the fast integration as an input.
+
+Fixed a bug in the ARKStep time-stepping module that would result in an infinite
+loop if the nonlinear solver failed to converge more than the maximum allowed times
+during a single step.
+
+Fixed a bug that would result in a ``too much accuracy requested'' error when
+using fixed time step sizes with explicit methods in some cases.
 
 Fixed a bug in ARKStep where the mass matrix linear solver setup function was
 not called in the Matrix-free case.
@@ -424,36 +507,12 @@ Fixed a minor bug in ARKStep where an incorrect flag is reported when an
 error occurs in the mass matrix setup or Jacobian-vector product setup
 functions.
 
-Fixed a bug in the build system that prevented the PThreads NVECTOR module from
-being built.
-
-Fixed a memory leak in the NVECTOR\_PETSC clone function.
-
 Fixed a memeory leak in FARKODE when not using the default nonlinear solver.
 
-Added two new embedded ARK methods of orders 4 and 5 to ARKode (from \phantomsection\label{Introduction:id7}{\hyperref[References:kc2019]{\emph{{[}KC2019{]}}}}).
-
-The ManyVector NVECTOR module has been split into two versions: one
-that requires MPI (MPIManyVector) and another that does not use MPI at
-all (ManyVector).  The associated example problems have been similarly
-updated to reflect this new structure.
-
-An additional NVECTOR implementation, NVECTOR\_MPIPLUSX, was created to support
-the MPI+X paradigm, where X is a type of on-node parallelism (e.g. OpenMP, CUDA).
-The implementation is accompanied by additions to user documentation and SUNDIALS
-examples.
-
-The *\_MPICuda and *\_MPIRaja functions were removed from the NVECTOR\_CUDA and
-NVECTOR\_RAJA implementations respectively. Accordingly, the \code{nvector\_mpicuda.h},
-\code{nvector\_mpiraja.h}, \code{libsundials\_nvecmpicuda.lib}, and \code{libsundials\_nvecmpicudaraja.lib}
-files have been removed. Users should use the NVECTOR\_MPIPLUSX module coupled with
-the NVECTOR\_CUDA or NVECTOR\_RAJA to replace the functionality. The necessary changes
-are minimal and should require few code modifications.
-
-A new Fortran 2003 interface to ARKode was added. This includes Fortran 2003 interfaces
-to the ARKStep, ERKStep, and MRIStep time-stepping modules as well as all generic SUNDIALS
-types (i.e. NVECTOR, SUNMATRIX, SUNLINEARSOLVER, SUNNONLINEARSOLVER), and many of the module
-implementations. See Section {\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} for more details.
+The reinitialization functions {\hyperref[ERKStep_c_interface/User_callable:c.ERKStepReInit]{\emph{\code{ERKStepReInit()}}}},
+{\hyperref[ARKStep_c_interface/User_callable:c.ARKStepReInit]{\emph{\code{ARKStepReInit()}}}}, and {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepReInit]{\emph{\code{MRIStepReInit()}}}} have been updated to
+retain the minimum and maxiumum step size values from before reinitialization
+rather than resetting them to the default values.
 
 Removed extraneous calls to {\hyperref[nvectors/NVector_Operations:c.N_VMin]{\emph{\code{N\_VMin()}}}} for simulations where
 the scalar valued absolute tolerance, or all entries of the
@@ -461,54 +520,34 @@ vector-valued absolute tolerance array, are strictly positive.  In
 this scenario, ARKode will remove at least one global reduction per
 time step.
 
+The ARKLS interface has been updated to only zero the Jacobian matrix before
+calling a user-supplied Jacobian evaluation function when the attached linear
+solver has type \code{SUNLINEARSOLVER\_DIRECT}.
 
-\subsection{Changes in v4.0.0-dev.0}
-\label{Introduction:changes-in-v4-0-0-dev-0}
-An additional NVECTOR implementation, NVECTOR\_MANYVECTOR, was
-created to support flexible partitioning of solution data among
-different processing elements (e.g., CPU + GPU) or for multi-physics
-problems that couple distinct MPI-based simulations together (see the
-Section {\hyperref[nvectors/NVector_ManyVector:nvectors-manyvector]{\emph{\DUspan{}{The NVECTOR\_MANYVECTOR Module}}}} for more details).  This
-implementation is accompanied by additions to user documentation and
-SUNDIALS examples.
+A new linear solver interface function {\hyperref[ARKStep_c_interface/User_supplied:c.ARKLsLinSysFn]{\emph{\code{ARKLsLinSysFn()}}}} was added as an
+alternative method for evaluating the linear system \(A = M - \gamma J\).
 
-Eleven new optional vector operations have been added to the NVECTOR API to
-support the new NVECTOR\_MANYVECTOR implementation (see the Chapter {\hyperref[nvectors/index:nvectors]{\emph{\DUspan{}{Vector Data Structures}}}}
-for more details). Two of the operations, {\hyperref[nvectors/NVector_Operations:c.N_VGetCommunicator]{\emph{\code{N\_VGetCommunicator()}}}} and
-{\hyperref[nvectors/NVector_Operations:c.N_VGetLength]{\emph{\code{N\_VGetLength()}}}}, must be implemented by subvectors that are combined to
-create an NVECTOR\_MANYVECTOR, but are not used outside of this context. The
-remaining nine operations are optional local reduction operations intended to
-eliminate unnecessary latency when performing vector reduction operations
-(norms, etc.) on distributed memory systems. The optional local reduction vector
-operations are
-{\hyperref[nvectors/NVector_Operations:c.N_VDotProdLocal]{\emph{\code{N\_VDotProdLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VMaxNormLocal]{\emph{\code{N\_VMaxNormLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VMinLocal]{\emph{\code{N\_VMinLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VL1NormLocal]{\emph{\code{N\_VL1NormLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VWSqrSumLocal]{\emph{\code{N\_VWSqrSumLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VWSqrSumMaskLocal]{\emph{\code{N\_VWSqrSumMaskLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VInvTestLocal]{\emph{\code{N\_VInvTestLocal()}}}},
-{\hyperref[nvectors/NVector_Operations:c.N_VConstrMaskLocal]{\emph{\code{N\_VConstrMaskLocal()}}}}, and
-{\hyperref[nvectors/NVector_Operations:c.N_VMinQuotientLocal]{\emph{\code{N\_VMinQuotientLocal()}}}}.
-If an NVECTOR implementation defines any of the local operations as \code{NULL},
-then the NVECTOR\_MANYVECTOR will call standard NVECTOR operations to complete
-the computation.
+Added two new embedded ARK methods of orders 4 and 5 to ARKode (from \phantomsection\label{Introduction:id7}{\hyperref[References:kc2019]{\emph{{[}KC2019{]}}}}).
 
-A new SUNMatrix and SUNLinearSolver implementation was added to facilitate
-the use of the SuperLU\_DIST library with SUNDIALS.
+Support for optional inequality constraints on individual components of the
+solution vector has been added the ARKode ERKStep and ARKStep modules. See
+the descriptions of {\hyperref[ERKStep_c_interface/User_callable:c.ERKStepSetConstraints]{\emph{\code{ERKStepSetConstraints()}}}} and
+{\hyperref[ARKStep_c_interface/User_callable:c.ARKStepSetConstraints]{\emph{\code{ARKStepSetConstraints()}}}} for more details. Note that enabling
+constraint handling requires the NVECTOR operations {\hyperref[nvectors/NVector_Operations:c.N_VMinQuotient]{\emph{\code{N\_VMinQuotient()}}}},
+{\hyperref[nvectors/NVector_Operations:c.N_VConstrMask]{\emph{\code{N\_VConstrMask()}}}}, and {\hyperref[nvectors/NVector_Operations:c.N_VCompare]{\emph{\code{N\_VCompare()}}}} that were not previously
+required by ARKode.
 
-A new operation, \code{SUNMatMatvecSetup}, was added to the SUNMatrix API. Users
-who have implemented custom \code{SUNMatrix} modules will need to at least update
-their code to set the corresponding ops structure member, \code{matvecsetup}, to \code{NULL}.
+Added two new `Get' functions to ARKStep, {\hyperref[sunnonlinsol/ARKode_Interface:c.ARKStepGetCurrentGamma]{\emph{\code{ARKStepGetCurrentGamma()}}}},
+and {\hyperref[sunnonlinsol/ARKode_Interface:c.ARKStepGetCurrentState]{\emph{\code{ARKStepGetCurrentState()}}}}, that may be useful to users who choose
+to provide their own nonlinear solver implementation.
 
-The generic SUNMatrix API now defines error codes to be returned by SUNMatrix operations.
-Operations which return an integer flag indiciating success/failure may return different
-values than previously.
+Add two new `Set' functions to MRIStep, {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepSetPreInnerFn]{\emph{\code{MRIStepSetPreInnerFn()}}}} and
+{\hyperref[MRIStep_c_interface/User_callable:c.MRIStepSetPostInnerFn]{\emph{\code{MRIStepSetPostInnerFn()}}}} for performing communication or memory
+transfers needed before or after the inner integration.
 
-The MRIStep module has been updated to support explicit, implicit, or IMEX
-methods as the fast integrator using the ARKStep module. As a result some
-function signatures have been changed including {\hyperref[MRIStep_c_interface/User_callable:c.MRIStepCreate]{\emph{\code{MRIStepCreate()}}}} which
-now takes an ARKStep memory structure for the fast integration as an input.
+A new Fortran 2003 interface to ARKode was added. This includes Fortran 2003 interfaces
+to the ARKStep, ERKStep, and MRIStep time-stepping modules. See the
+{\hyperref[ARKode_f_interface/index:fortraninterfaces]{\emph{\DUspan{}{Using ARKode for Fortran Applications}}}} section for more details.
 
 
 \subsection{Changes in v3.1.0}
@@ -4054,7 +4093,7 @@ solution component.
 \index{ARKStepWFtolerances (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepWFtolerances}\pysiglinewithargsret{int \bfcode{ARKStepWFtolerances}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{ARKEwtFn}}}\emph{ efun}}{}
+\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepWFtolerances}\pysiglinewithargsret{int \bfcode{ARKStepWFtolerances}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{ARKEwtFn}}}\emph{ efun}}{}
 This function specifies a user-supplied function \emph{efun} to compute
 the error weight vector \code{ewt}.
 \begin{description}
@@ -4063,7 +4102,7 @@ the error weight vector \code{ewt}.
 \emph{arkode\_mem} -- pointer to the ARKStep memory block.
 
 \item {} 
-\emph{efun} -- the name of the function (of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}})
+\emph{efun} -- the name of the function (of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}})
 that implements the error weight vector computation.
 
 \end{itemize}
@@ -6208,7 +6247,7 @@ none
 \index{ARKStepSetAdaptivityFn (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepSetAdaptivityFn}\pysiglinewithargsret{int \bfcode{ARKStepSetAdaptivityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{ARKAdaptFn}}}\emph{ hfun}, void*\emph{ h\_data}}{}
+\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepSetAdaptivityFn}\pysiglinewithargsret{int \bfcode{ARKStepSetAdaptivityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{ARKAdaptFn}}}\emph{ hfun}, void*\emph{ h\_data}}{}
 Sets a user-supplied time-step adaptivity function.
 \begin{description}
 \item[{\textbf{Arguments:}}] \leavevmode\begin{itemize}
@@ -6619,7 +6658,7 @@ before the \emph{etamxf} parameter from
 \index{ARKStepSetStabilityFn (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepSetStabilityFn}\pysiglinewithargsret{int \bfcode{ARKStepSetStabilityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{ARKExpStabFn}}}\emph{ EStab}, void*\emph{ estab\_data}}{}
+\phantomsection\label{ARKStep_c_interface/User_callable:c.ARKStepSetStabilityFn}\pysiglinewithargsret{int \bfcode{ARKStepSetStabilityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{ARKExpStabFn}}}\emph{ EStab}, void*\emph{ estab\_data}}{}
 Sets the problem-dependent function to estimate a stable
 time step size for the explicit portion of the ODE system.
 \begin{description}
@@ -10686,7 +10725,7 @@ pointer to memory encounters an error, it sets \emph{error\_code} to
 \subsection{Error weight function}
 \label{ARKStep_c_interface/User_supplied:arkstep-cinterface-errorweight}\label{ARKStep_c_interface/User_supplied:error-weight-function}
 As an alternative to providing the relative and absolute tolerances,
-the user may provide a function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn}}}} to compute a
+the user may provide a function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn}}}} to compute a
 vector \emph{ewt} containing the weights in the WRMS norm
 \(\|v\|_{WRMS} = \left(\frac{1}{n} \sum_{i=1}^n \left(ewt_i\; v_i\right)^2
 \right)^{1/2}\).  These weights will be used in place of those defined
@@ -10778,7 +10817,7 @@ is not satisfied.
 \label{ARKStep_c_interface/User_supplied:arkstep-cinterface-adaptivityfn}\label{ARKStep_c_interface/User_supplied:time-step-adaptivity-function}
 As an alternative to using one of the built-in time step adaptivity
 methods for controlling solution error, the user may provide a
-function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn}}}} to compute a target step size
+function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn}}}} to compute a target step size
 \(h\) for the next integration step.  These steps should be chosen
 as the maximum value such that the error estimates remain below 1.
 \index{ARKAdaptFn (C type)}
@@ -10845,7 +10884,7 @@ for the explicit portion of the ImEx system, \(f^E(t,y)\).  While
 the accuracy-based time step adaptivity algorithms may be sufficient
 for retaining a stable solution to the ODE system, these may be
 inefficient if \(f^E(t,y)\) contains moderately stiff terms.  In
-this scenario, a user may provide a function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn}}}}
+this scenario, a user may provide a function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn}}}}
 to provide this stability information to ARKStep.  This function
 must set the scalar step size satisfying the stability restriction for
 the upcoming time step.  This value will subsequently be bounded by
@@ -13119,7 +13158,7 @@ solution component.
 \index{ERKStepWFtolerances (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepWFtolerances}\pysiglinewithargsret{int \bfcode{ERKStepWFtolerances}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{ARKEwtFn}}}\emph{ efun}}{}
+\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepWFtolerances}\pysiglinewithargsret{int \bfcode{ERKStepWFtolerances}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{ARKEwtFn}}}\emph{ efun}}{}
 This function specifies a user-supplied function \emph{efun} to compute
 the error weight vector \code{ewt}.
 \begin{description}
@@ -13128,7 +13167,7 @@ the error weight vector \code{ewt}.
 \emph{arkode\_mem} -- pointer to the ERKStep memory block.
 
 \item {} 
-\emph{efun} -- the name of the function (of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}})
+\emph{efun} -- the name of the function (of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}})
 that implements the error weight vector computation.
 
 \end{itemize}
@@ -14500,7 +14539,7 @@ none
 \index{ERKStepSetAdaptivityFn (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepSetAdaptivityFn}\pysiglinewithargsret{int \bfcode{ERKStepSetAdaptivityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{ARKAdaptFn}}}\emph{ hfun}, void*\emph{ h\_data}}{}
+\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepSetAdaptivityFn}\pysiglinewithargsret{int \bfcode{ERKStepSetAdaptivityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{ARKAdaptFn}}}\emph{ hfun}, void*\emph{ h\_data}}{}
 Sets a user-supplied time-step adaptivity function.
 \begin{description}
 \item[{\textbf{Arguments:}}] \leavevmode\begin{itemize}
@@ -14876,7 +14915,7 @@ before the \emph{etamxf} parameter from
 \index{ERKStepSetStabilityFn (C function)}
 
 \begin{fulllineitems}
-\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepSetStabilityFn}\pysiglinewithargsret{int \bfcode{ERKStepSetStabilityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{ARKExpStabFn}}}\emph{ EStab}, void*\emph{ estab\_data}}{}
+\phantomsection\label{ERKStep_c_interface/User_callable:c.ERKStepSetStabilityFn}\pysiglinewithargsret{int \bfcode{ERKStepSetStabilityFn}}{void*\emph{ arkode\_mem}, {\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{ARKExpStabFn}}}\emph{ EStab}, void*\emph{ estab\_data}}{}
 Sets the problem-dependent function to estimate a stable
 time step size for the explicit portion of the ODE system.
 \begin{description}
@@ -16462,7 +16501,7 @@ pointer to memory encounters an error, it sets \emph{error\_code} to
 \subsection{Error weight function}
 \label{ERKStep_c_interface/User_supplied:erkstep-cinterface-errorweight}\label{ERKStep_c_interface/User_supplied:error-weight-function}
 As an alternative to providing the relative and absolute tolerances,
-the user may provide a function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn}}}} to compute a
+the user may provide a function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn}}}} to compute a
 vector \emph{ewt} containing the weights in the WRMS norm
 \(\|v\|_{WRMS} = \left(\frac{1}{n} \sum_{i=1}^n \left(ewt_i\; v_i\right)^2
 \right)^{1/2}\).  These weights will be used in place of those defined
@@ -16508,7 +16547,7 @@ is not satisfied.
 \label{ERKStep_c_interface/User_supplied:time-step-adaptivity-function}\label{ERKStep_c_interface/User_supplied:erkstep-cinterface-adaptivityfn}
 As an alternative to using one of the built-in time step adaptivity
 methods for controlling solution error, the user may provide a
-function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn}}}} to compute a target step size
+function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn}}}} to compute a target step size
 \(h\) for the next integration step.  These steps should be chosen
 as the maximum value such that the error estimates remain below 1.
 \index{ARKAdaptFn (C type)}
@@ -16575,7 +16614,7 @@ for the explicit Runge Kutta method on this problem.  While the
 accuracy-based time step adaptivity algorithms may be sufficient
 for retaining a stable solution to the ODE system, these may be
 inefficient if \(f(t,y)\) contains moderately stiff terms.  In
-this scenario, a user may provide a function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn}}}}
+this scenario, a user may provide a function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn}}}}
 to provide this stability information to ERKStep.  This function
 must set the scalar step size satisfying the stability restriction for
 the upcoming time step.  This value will subsequently be bounded by
@@ -20643,21 +20682,21 @@ FARKODE ``activation'' routine
 \hline
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKEWT]{\emph{\code{FARKEWT()}}}}
  & 
-{\hyperref[ARKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}}
+{\hyperref[ERKStep_c_interface/User_supplied:c.ARKEwtFn]{\emph{\code{ARKEwtFn()}}}}
  & 
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKEWTSET]{\emph{\code{FARKEWTSET()}}}}
 \\
 \hline
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKADAPT]{\emph{\code{FARKADAPT()}}}}
  & 
-{\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn()}}}}
+{\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn()}}}}
  & 
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKADAPTSET]{\emph{\code{FARKADAPTSET()}}}}
 \\
 \hline
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKEXPSTAB]{\emph{\code{FARKEXPSTAB()}}}}
  & 
-{\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn()}}}}
+{\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn()}}}}
  & 
 {\hyperref[ARKode_f_interface/Usage:f/_/FARKEXPSTABSET]{\emph{\code{FARKEXPSTABSET()}}}}
 \\
@@ -21601,7 +21640,7 @@ ARKStep for handling adaptive error control and explicit stability.
 The former of these is designed for advanced users who wish to
 investigate custom step adaptivity approaches as opposed to using any
 of those built-in to ARKStep.  In ARKStep's C/C++ interface, this would be
-provided by a function of type {\hyperref[ARKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn()}}}}; in the Fortran
+provided by a function of type {\hyperref[ERKStep_c_interface/User_supplied:c.ARKAdaptFn]{\emph{\code{ARKAdaptFn()}}}}; in the Fortran
 interface this is provided through the user-supplied function:
 \index{FARKADAPT() (fortran subroutine)|textbf}
 
@@ -21694,7 +21733,7 @@ Similarly, if either an explicit or mixed implicit-explicit
 integration method is to be employed, the user may specify a function
 to provide the maximum explicitly-stable step for their problem.
 Again, in the C/C++ interface this would be a function of type
-{\hyperref[ARKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn()}}}}, while in ARKStep's Fortran interface this
+{\hyperref[ERKStep_c_interface/User_supplied:c.ARKExpStabFn]{\emph{\code{ARKExpStabFn()}}}}, while in ARKStep's Fortran interface this
 must be given through the user-supplied function:
 \index{FARKEXPSTAB() (fortran subroutine)|textbf}
 
@@ -44277,55 +44316,21 @@ KINSOL
 \endlastfoot
 
 
-Sep 2019
+Oct 2019
  & 
-5.0.0-dev.2
+5.0.0
  & 
-4.0.0-dev.2
+4.0.0
  & 
-5.0.0-dev.2
+5.0.0
  & 
-5.0.0-dev.2
+5.0.0
  & 
-5.0.0-dev.2
+5.0.0
  & 
-4.0.0-dev.2
+4.0.0
  & 
-5.0.0-dev.2
-\\
-\hline
-Jun 2019
- & 
-5.0.0-dev.1
- & 
-4.0.0-dev.1
- & 
-5.0.0-dev.1
- & 
-5.0.0-dev.1
- & 
-5.0.0-dev.1
- & 
-4.0.0-dev.1
- & 
-5.0.0-dev.1
-\\
-\hline
-Mar 2019
- & 
-5.0.0-dev.0
- & 
-4.0.0-dev.0
- & 
-5.0.0-dev.0
- & 
-5.0.0-dev.0
- & 
-5.0.0-dev.0
- & 
-4.0.0-dev.0
- & 
-5.0.0-dev.0
+5.0.0
 \\
 \hline
 Feb 2019
@@ -44983,11 +44988,11 @@ Report UCRL-ID-141558, LLNL, 2000.
 }
 \bibitem[HS2017]{HS2017}{\phantomsection\label{References:hs2017} 
 A.C. Hindmarsh and R. Serban. User Documentation for CVODE
-v5.0.0-dev.2. Technical Report UCRL-SM-208108, LLNL, 2019.
+v5.0.0. Technical Report UCRL-SM-208108, LLNL, 2019.
 }
 \bibitem[HSR2017]{HSR2017}{\phantomsection\label{References:hsr2017} 
 A.C. Hindmarsh, R. Serban and D.R. Reynolds. Example
-Programs for CVODE v5.0.0-dev.2. Technical Report
+Programs for CVODE v5.0.0. Technical Report
 UCRL-SM-208110, LLNL, 2019.
 }
 \bibitem[HT1998]{HT1998}{\phantomsection\label{References:ht1998} 

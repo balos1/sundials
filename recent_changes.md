@@ -42,7 +42,7 @@ support the MPI+X paradigm where X is a type of on-node parallelism (e.g.,
 OpenMP, CUDA). The implementation is accompanied by additions to user
 documentation and SUNDIALS examples.
 
-One new requried vector operation and ten new optional vector operations have
+One new required vector operation and ten new optional vector operations have
 been added to the NVECTOR API. The new required operation, N_VGetLength, returns
 the global length of an N_Vector. The optional operations have been added to
 support the new NVECTOR_MPIMANYVECTOR implementation. The operation
@@ -161,7 +161,7 @@ pointer will be passed to the nonlinear solver convergence test function on each
 call.
 
 The inputs values passed to the first two inputs of the `SUNNonlinSolSolve`
-function in the SUNNONLINEARSOLVER have been chagned to be the predicted
+function in the SUNNONLINEARSOLVER have been changed to be the predicted
 state and the initial guess for the correction to that state. Additionally,
 the definitions of `SUNNonlinSolLSetupFn` and `SUNNonlinSolLSolveFn` in the
 SUNNonlinearSolver API have been updated to remove unused input parameters.

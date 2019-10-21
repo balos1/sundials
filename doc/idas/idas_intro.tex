@@ -206,9 +206,12 @@ for custom matrix objects these functions also will ease the introduction of any
 new optional operations to the {\sunmatrix} API by ensuring all operations are
 copied when cloning objects. See \S\ref{ss:sunmatrix_utilities} for more details.
 %
-\item A new operation, \id{SUNMatMatvecSetup}, was added to the {\sunmatrix} API.
-Users who have implemented custom {\sunmatrix} modules will need to at least
-update their code to set the corresponding \id{ops} structure member,
+\item A new operation, \id{SUNMatMatvecSetup}, was added to the {\sunmatrix} API
+to perform any setup necessary for computing a matrix-vector product. This
+operation is useful for {\sunmatrix} implementations which need to prepare the
+matrix itself, or communication structures before performing the matrix-vector
+product. Users who have implemented custom {\sunmatrix} modules will need to at
+least update their code to set the corresponding \id{ops} structure member,
 \id{matvecsetup}, to \id{NULL}. See \S\ref{ss:sunmatrix_functions} for more
 details.
 %

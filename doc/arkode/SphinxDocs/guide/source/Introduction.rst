@@ -219,6 +219,14 @@ Users who have implemented custom SUNMATRIX modules will need to at least
 update their code to set the corresponding ``ops`` structure member,
 ``matvecsetup``, to ``NULL``.
 
+A new operation, :c:func:`SUNMatMatvecSetup()`, was added to the SUNMATRIX API
+to perform any setup necessary for computing a matrix-vector product. This
+operation is useful for SUNMATRIX implementations which need to prepare the
+matrix itself, or communication structures before performing the matrix-vector
+product. Users who have implemented custom SUNMATRIX modules will need to at
+least update their code to set the corresponding ``ops`` structure member,
+``matvecsetup``, to ``NULL``.
+
 The generic SUNMATRIX API now defines error codes to be returned by
 SUNMATRIX operations. Operations which return an integer flag indiciating
 success/failure may return different values than previously.

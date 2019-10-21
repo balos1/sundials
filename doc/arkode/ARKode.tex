@@ -371,7 +371,10 @@ NVECTOR\_CUDA and NVECTOR\_RAJA implementations respectively. Accordingly, the
 and \code{libsundials\_nvecmpicudaraja.lib} files have been removed. Users should
 use the NVECTOR\_MPIPLUSX module coupled in conjunction with the NVECTOR\_CUDA
 or NVECTOR\_RAJA modules to replace the functionality. The necessary changes are
-minimal and should require few code modifications.
+minimal and should require few code modifications. See the programs in
+\code{examples/ida/mpicuda} and \code{examples/ida/mpiraja} for examples of how to
+use the NVECTOR\_MPIPLUSX module with the NVECTOR\_CUDA and NVECTOR\_RAJA modules
+respectively.
 
 Fixed a memory leak in the NVECTOR\_PETSC module clone function.
 

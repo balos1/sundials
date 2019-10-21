@@ -283,7 +283,7 @@ input. The supplied data pointer will be passed to the nonlinear solver
 convergence test function on each call.
 
 The inputs values passed to the first two inputs of the :c:func:`SUNNonlinSolSolve()`
-function in the SUNNONLINEARSOLVER have been chagned to be the predicted
+function in the SUNNONLINEARSOLVER have been changed to be the predicted
 state and the initial guess for the correction to that state. Additionally,
 the definitions of :c:type:`SUNNonlinSolLSetupFn` and :c:type:`SUNNonlinSolLSolveFn`
 in the SUNNONLINEARSOLVER API have been updated to remove unused input

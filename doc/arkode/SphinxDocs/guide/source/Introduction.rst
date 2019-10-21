@@ -145,7 +145,7 @@ multi-physics problems that couple distinct MPI-based simulations together. This
 implementation is accompanied by additions to user documentation and SUNDIALS
 examples.
 
-One new requried vector operation and ten new optional vector operations have
+One new required vector operation and ten new optional vector operations have
 been added to the NVECTOR API. The new required operation, :c:func:`N\_VGetLength()`,
 returns the global length of an ``N_Vector``. The optional operations have
 been added to support the new NVECTOR_MPIMANYVECTOR implementation. The

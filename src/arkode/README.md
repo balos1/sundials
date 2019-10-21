@@ -1,8 +1,10 @@
 # ARKode
 ### Version 4.0.0 (Oct 2019)
 
-**Daniel R. Reynolds  
-  Department of Mathematics, SMU**
+**Daniel R. Reynolds and Jean M. Sexton
+  Department of Mathematics, SMU
+  David J. Gardner, Alan C. Hindmarsh, and Carol S. Woodward
+  Center for Applied Scientific Computing, LLNL**
 
 ARKode is a package for the solution of stiff, nonstiff, and multirate ordinary
 differential equation (ODE) systems (initial value problems) given in linearly

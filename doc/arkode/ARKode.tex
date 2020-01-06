@@ -304,6 +304,8 @@ preconditioner routines.
 \label{Introduction:changes-in-4-1-0}
 Fixed a build system bug related to finding LAPACK/BLAS.
 
+Fixed a build system bug related to checking if the KLU library works.
+
 Fixed a build system bug related to finding PETSc when using the CMake
 variables \code{PETSC\_INCLUDES} and \code{PETSC\_LIBRARIES} instead of
 \code{PETSC\_DIR}.
@@ -651,7 +653,7 @@ and fast processes in an additive splitting.
 
 This restructure has resulted in numerous small changes to the user
 interface, particularly the suite of ``Set'' routines for user-provided
-solver parameters and and ``Get'' routines to access solver statistics,
+solver parameters and ``Get'' routines to access solver statistics,
 that are now prefixed with the name of time-stepping module (e.g., \code{ARKStep}
 or \code{ERKStep}) instead of \code{ARKode}.  Aside from affecting the names of these
 routines, user-level changes have been kept to a minimum.  However, we recommend
@@ -2877,11 +2879,9 @@ IDAS, respectively.
 The various solvers of this family share many subordinate modules.
 For this reason, it is organized as a family, with a directory
 structure that exploits that sharing (see the following Figures
-{\hyperref[Organization:sunorg1]{\emph{\DUspan{}{SUNDIALS organization}}}},
-{\hyperref[Organization:sunorg2]{\emph{\DUspan{}{SUNDIALS tree}}}} and
-{\hyperref[Organization:sunorg3]{\emph{\DUspan{}{SUNDIALS examples}}}}).  The following is a list of the
-solver packages presently available, and the basic functionality
-of each:
+{\hyperref[Organization:sunorg1]{\emph{\DUspan{}{SUNDIALS organization}}}} and {\hyperref[Organization:sunorg2]{\emph{\DUspan{}{SUNDIALS tree}}}}).
+The following is a list of the solver packages presently available, and the
+basic functionality of each:
 \begin{itemize}
 \item {} 
 CVODE, a linear multistep solver for stiff and nonstiff ODE systems
@@ -2892,7 +2892,8 @@ CVODES, a linear multistep solver for stiff and nonstiff ODEs with
 sensitivity analysis capabilities;
 
 \item {} 
-ARKode, a Runge-Kutta based solver for stiff, nonstiff, and mixed ODE systems;
+ARKode, a Runge-Kutta based solver for stiff, nonstiff, mixed stiff-nonstiff,
+and multirate ODE systems;
 
 \item {} 
 IDA, a linear multistep solver for differential-algebraic systems
@@ -2906,6 +2907,10 @@ analysis capabilities;
 KINSOL, a solver for nonlinear algebraic systems \(F(u) = 0\).
 
 \end{itemize}
+
+Note for modules that provide interfaces to third-party libraries (i.e., LAPACK,
+KLU, SuperLU\_MT, SuperLU\_DIST, \emph{hypre}, PETSc, Trilinos, and RAJA users will
+need to download and compile those packages independently.
 \begin{figure}[htbp]
 \centering
 \capstart
@@ -2918,12 +2923,6 @@ KINSOL, a solver for nonlinear algebraic systems \(F(u) = 0\).
 
 \scalebox{0.750000}{\includegraphics{sunorg2.png}}
 \caption{\emph{SUNDIALS tree}: Directory structure of the source tree.}\label{Organization:sunorg2}\end{figure}
-\begin{figure}[htbp]
-\centering
-\capstart
-
-\scalebox{0.750000}{\includegraphics{sunorg3.png}}
-\caption{\emph{SUNDIALS examples}: Directory structure of the examples.}\label{Organization:sunorg3}\end{figure}
 
 
 \section{ARKode organization}
@@ -2936,8 +2935,8 @@ The overall organization of the ARKode package is shown in Figure
 {\hyperref[Organization:arkorg]{\emph{\DUspan{}{ARKode organization}}}}.  The central integration modules,
 implemented in the files \code{arkode.h}, \code{arkode\_impl.h},
 \code{arkode\_butcher.h}, \code{arkode.c}, \code{arkode\_arkstep.c} ,
-\code{arkode\_erkstep.c} and \code{arkode\_butcher.c}, deal with the
-evaluation of integration stages, the nonlinear solvers, estimation of
+\code{arkode\_erkstep.c}, \code{arkode\_mristep.h}, and \code{arkode\_butcher.c}, deal with
+the evaluation of integration stages, the nonlinear solvers, estimation of
 the local truncation error, selection of step size, and interpolation
 to user output points, among other issues.  ARKode currently supports
 modified Newton, inexact Newton, and accelerated fixed-point solvers
@@ -2955,12 +2954,10 @@ during the integration process.
 
 \includegraphics{arkorg.png}
 \caption{\emph{ARKode organization}: Overall structure of the ARKode package.
-Modules specific to ARKode are the timesteppers, linear solver
-interfaces and preconditioners: ARKSTEP, ERKSTEP, ARKBBDPRE,
-ARKBANDPRE; all other items correspond to generic solver
-and auxiliary modules.  Note also that the LAPACK, KLU and
-SuperLU\_MT support is through interfaces to external packages.
-Users will need to download and compile those packages independently.}\label{Organization:arkorg}\end{figure}
+Modules specific to ARKode are the timesteppers (ARKODE), linear solver
+interfaces (ARKLS), nonlinear solver interfaces (ARKNLS), and preconditioners
+(ARKBANDPRE and ARKBBDPRE); all other items correspond to generic SUNDIALS
+vector, matrix, and solver modules.}\label{Organization:arkorg}\end{figure}
 
 For solving these linear systems, ARKode's linear solver interface
 supports both direct and iterative linear solvers built using the

@@ -2,7 +2,7 @@
    Programmer(s): Daniel R. Reynolds @ SMU
    ----------------------------------------------------------------
    SUNDIALS Copyright Start
-   Copyright (c) 2002-2019, Lawrence Livermore National Security
+   Copyright (c) 2002-2020, Lawrence Livermore National Security
    and Southern Methodist University.
    All rights reserved.
 
@@ -111,6 +111,8 @@ Changes in 4.1.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Fixed a build system bug related to finding LAPACK/BLAS.
+
+Fixed a build system bug related to checking if the KLU library works.
 
 Fixed a build system bug related to finding PETSc when using the CMake
 variables ``PETSC_INCLUDES`` and ``PETSC_LIBRARIES`` instead of
@@ -459,7 +461,7 @@ module. Two new time-stepping modules have been added:
 
 This restructure has resulted in numerous small changes to the user
 interface, particularly the suite of "Set" routines for user-provided
-solver parameters and and "Get" routines to access solver statistics,
+solver parameters and "Get" routines to access solver statistics,
 that are now prefixed with the name of time-stepping module (e.g., ``ARKStep``
 or ``ERKStep``) instead of ``ARKode``.  Aside from affecting the names of these
 routines, user-level changes have been kept to a minimum.  However, we recommend

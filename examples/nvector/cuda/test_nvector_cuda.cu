@@ -21,11 +21,7 @@
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
 #include <nvector/nvector_cuda.h>
-#include <nvector/cuda/ThreadPartitioning.hpp>
 #include "test_nvector.h"
-
-
-using namespace suncudavec;
 
 /* private custom allocator functions */
 static void* sunalloc(size_t);
@@ -349,6 +345,8 @@ int Test_N_VMakeManaged_Cuda(N_Vector X, sunindextype length, int myid)
   }
 
   failure += check_ans(NEG_HALF, Y, length);
+
+  N_VDestroy(Y);
 
   /* Case 2: data is null */
   Y = N_VMakeManaged_Cuda(length, NULL);

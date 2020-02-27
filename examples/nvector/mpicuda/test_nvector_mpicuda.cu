@@ -19,7 +19,6 @@
 #include <stdlib.h>
 
 #include <sundials/sundials_types.h>
-#include <nvector/cuda/Vector.hpp>
 #include <nvector/nvector_cuda.h>
 #include <nvector/nvector_mpiplusx.h>
 #include <sundials/sundials_math.h>

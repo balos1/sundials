@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include <nvector/cuda/Vector.hpp>
+#include <nvector/cuda/CudaVectorContent.hpp>
 #include <nvector/cuda/VectorKernels.cuh>
 #include <nvector/cuda/VectorArrayKernels.cuh>
 
@@ -30,14 +30,14 @@
 
 extern "C" {
 
-using namespace suncudavec;
+using namespace sundials::device;
 
 /*
  * Type definitions
  */
 
-typedef suncudavec::Vector<realtype, sunindextype> vector_type;
-typedef suncudavec::ThreadPartitioning<realtype, sunindextype> part_type;
+typedef sundials::device::MemoryClass memory_class;
+typedef sundials::device::CudaVectorContent<realtype, sunindextype> vector_content;
 
 /* ----------------------------------------------------------------
  * Returns vector type ID. Used to identify vector implementation
@@ -112,7 +112,8 @@ N_Vector N_VNew_Cuda(sunindextype length)
   v = N_VNewEmpty_Cuda();
   if (v == NULL) return(NULL);
 
-  v->content = new vector_type(length);
+  memory_class* mem_class = new memory_class(SUNMEMTYPE_DEVICE);
+  v->content = new vector_content(length, mem_class);
 
   return(v);
 }
@@ -129,8 +130,9 @@ N_Vector N_VNewManaged_Cuda(sunindextype length)
      nvgetarraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
-  /* create suncudavec::Vector with managed memory */
-  v->content = new vector_type(length, true);
+  /* create sundials::device::CudaVectorContent with managed memory */
+  memory_class* mem_class = new memory_class(SUNMEMTYPE_UVM);
+  v->content = new vector_content(length, mem_class);
 
   return(v);
 }
@@ -145,8 +147,9 @@ N_Vector N_VMake_Cuda(sunindextype length, realtype *h_vdata, realtype *d_vdata)
   v = N_VNewEmpty_Cuda();
   if (v == NULL) return(NULL);
 
-  /* create suncudavec::Vector using the user-provided data arrays */
-  v->content = new vector_type(length, false, false, h_vdata, d_vdata);
+  /* create sundials::device::CudaVectorContent using the user-provided data arrays */
+  memory_class* mem_class = new memory_class(SUNMEMTYPE_DEVICE);
+  v->content = new vector_content(length, mem_class, h_vdata, d_vdata);
 
   return(v);
 }
@@ -165,8 +168,9 @@ N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
      nvgetarraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
-  /* create suncudavec::Vector with managed memory using the user-provided data arrays */
-  v->content = new vector_type(length, true, false, vdata, vdata);
+  /* create sundials::device::CudaVectorContent using the user-provided data arrays */
+  memory_class* mem_class = new memory_class(SUNMEMTYPE_UVM);
+  v->content = new vector_content(length, mem_class, vdata, vdata);
 
   return(v);
 }
@@ -185,8 +189,9 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
      nvgetarraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
-  /* create suncudavec::Vector with a custom allocator/deallocator */
-  v->content = new vector_type(length, allocfn, freefn, true);
+  /* create sundials::device::CudaVectorContent using the user-provided data arrays */
+  memory_class* mem_class = new memory_class(allocfn, freefn);
+  v->content = new vector_content(length, mem_class);
 
   return(v);
 }
@@ -196,7 +201,7 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
  */
 sunindextype N_VGetLength_Cuda(N_Vector v)
 {
-  vector_type* xd = static_cast<vector_type*>(v->content);
+  vector_content* xd = static_cast<vector_content*>(v->content);
   return (xd->size());
 }
 
@@ -206,7 +211,7 @@ sunindextype N_VGetLength_Cuda(N_Vector v)
 
 realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
+  vector_content* xv = static_cast<vector_content*>(x->content);
   return (xv->host());
 }
 
@@ -216,7 +221,7 @@ realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
 
 realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
+  vector_content* xv = static_cast<vector_content*>(x->content);
   return (xv->device());
 }
 
@@ -225,8 +230,22 @@ realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
  */
 booleantype N_VIsManagedMemory_Cuda(N_Vector x)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
+  vector_content* xv = static_cast<vector_content*>(x->content);
   return (xv->isManaged());
+}
+
+/* ----------------------------------------------------------------------------
+ * Sets the vector content.
+ * WARNING: N_VSetContent_Cuda does not delete content that is already attached!
+ */
+void N_VSetContent_Cuda(N_Vector x, N_VectorContent_Cuda content)
+{
+#ifdef DEBUG_MODE
+  if (x->content != NULL) {
+    printf("ERROR in N_VSetContent_Cuda: content is not NULL, memory will be leaked!\n")
+  }
+#endif
+  x->content = content;
 }
 
 /*
@@ -235,9 +254,8 @@ booleantype N_VIsManagedMemory_Cuda(N_Vector x)
  */
 void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
-  xv->partStream().setStream(*stream);
-  xv->partReduce().setStream(*stream);
+  vector_content* xv = static_cast<vector_content*>(x->content);
+  xv->stream(*stream);
 }
 
 /* ----------------------------------------------------------------------------
@@ -246,7 +264,7 @@ void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream)
 
 void N_VCopyToDevice_Cuda(N_Vector x)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
+  vector_content* xv = static_cast<vector_content*>(x->content);
   xv->copyToDev();
 }
 
@@ -256,7 +274,7 @@ void N_VCopyToDevice_Cuda(N_Vector x)
 
 void N_VCopyFromDevice_Cuda(N_Vector x)
 {
-  vector_type* xv = static_cast<vector_type*>(x->content);
+  vector_content* xv = static_cast<vector_content*>(x->content);
   xv->copyFromDev();
 }
 
@@ -276,7 +294,7 @@ void N_VPrint_Cuda(N_Vector x)
 void N_VPrintFile_Cuda(N_Vector x, FILE *outfile)
 {
   sunindextype i;
-  vector_type* xd = static_cast<vector_type*>(x->content);
+  vector_content* xd = static_cast<vector_content*>(x->content);
 
   for (i = 0; i < xd->size(); i++) {
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -323,8 +341,8 @@ N_Vector N_VClone_Cuda(N_Vector w)
   v = N_VCloneEmpty_Cuda(w);
   if (v == NULL) return(NULL);
 
-  vector_type* wdat = static_cast<vector_type*>(w->content);
-  vector_type* vdat = new vector_type(*wdat);
+  vector_content* wdat = static_cast<vector_content*>(w->content);
+  vector_content* vdat = new vector_content(*wdat);
 
   v->content = vdat;
 
@@ -336,7 +354,7 @@ void N_VDestroy_Cuda(N_Vector v)
 {
   if (v == NULL) return;
 
-  vector_type* x = static_cast<vector_type*>(v->content);
+  vector_content* x = static_cast<vector_content*>(v->content);
   if (x != NULL) {
     delete x;
     v->content = NULL;
@@ -351,114 +369,114 @@ void N_VDestroy_Cuda(N_Vector v)
 
 void N_VSpace_Cuda(N_Vector X, sunindextype *lrw, sunindextype *liw)
 {
-  vector_type* x = static_cast<vector_type*>(X->content);
+  vector_content* x = static_cast<vector_content*>(X->content);
   *lrw = x->size();
   *liw = 2;
 }
 
 void N_VConst_Cuda(realtype a, N_Vector X)
 {
-  vector_type *xvec = static_cast<vector_type*>(X->content);
+  vector_content *xvec = static_cast<vector_content*>(X->content);
   setConst(a, *xvec);
 }
 
 void N_VLinearSum_Cuda(realtype a, N_Vector X, realtype b, N_Vector Y, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *yvec = static_cast<vector_type*>(Y->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *yvec = static_cast<vector_content*>(Y->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   linearSum(a, *xvec, b, *yvec, *zvec);
 }
 
 void N_VProd_Cuda(N_Vector X, N_Vector Y, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *yvec = static_cast<vector_type*>(Y->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *yvec = static_cast<vector_content*>(Y->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   prod(*xvec, *yvec, *zvec);
 }
 
 void N_VDiv_Cuda(N_Vector X, N_Vector Y, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *yvec = static_cast<vector_type*>(Y->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *yvec = static_cast<vector_content*>(Y->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   div(*xvec, *yvec, *zvec);
 }
 
 void N_VScale_Cuda(realtype a, N_Vector X, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   scale(a, *xvec, *zvec);
 }
 
 void N_VAbs_Cuda(N_Vector X, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   absVal(*xvec, *zvec);
 }
 
 void N_VInv_Cuda(N_Vector X, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   inv(*xvec, *zvec);
 }
 
 void N_VAddConst_Cuda(N_Vector X, realtype b, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   addConst(b, *xvec, *zvec);
 }
 
 realtype N_VDotProd_Cuda(N_Vector X, N_Vector Y)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *yvec = static_cast<vector_type*>(Y->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *yvec = static_cast<vector_content*>(Y->content);
   return(dotProd(*xvec, *yvec));
 }
 
 realtype N_VMaxNorm_Cuda(N_Vector X)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
   return(maxNorm(*xvec));
 }
 
 realtype N_VWSqrSumLocal_Cuda(N_Vector X, N_Vector W)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *wvec = static_cast<vector_type*>(W->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *wvec = static_cast<vector_content*>(W->content);
   return(wL2NormSquare(*xvec, *wvec));
 }
 
 realtype N_VWrmsNorm_Cuda(N_Vector X, N_Vector W)
 {
   const realtype sum = N_VWSqrSumLocal_Cuda(X, W);
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
   return std::sqrt(sum/xvec->size());
 }
 
 realtype N_VWSqrSumMaskLocal_Cuda(N_Vector X, N_Vector W, N_Vector Id)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  const vector_type *wvec = static_cast<vector_type*>(W->content);
-  const vector_type *ivec = static_cast<vector_type*>(Id->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  const vector_content *wvec = static_cast<vector_content*>(W->content);
+  const vector_content *ivec = static_cast<vector_content*>(Id->content);
   return(wL2NormSquareMask(*xvec, *wvec, *ivec));
 }
 
 realtype N_VWrmsNormMask_Cuda(N_Vector X, N_Vector W, N_Vector Id)
 {
   const realtype sum = N_VWSqrSumMaskLocal_Cuda(X, W, Id);
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
   return std::sqrt(sum/xvec->size());
 }
 
 realtype N_VMin_Cuda(N_Vector X)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
   return(findMin(*xvec));
 }
 
@@ -470,38 +488,38 @@ realtype N_VWL2Norm_Cuda(N_Vector X, N_Vector W)
 
 realtype N_VL1Norm_Cuda(N_Vector X)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
   return(L1Norm(*xvec));
 }
 
 void N_VCompare_Cuda(realtype c, N_Vector X, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   compare(c, *xvec, *zvec);
 }
 
 booleantype N_VInvTest_Cuda(N_Vector X, N_Vector Z)
 {
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *zvec = static_cast<vector_type*>(Z->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *zvec = static_cast<vector_content*>(Z->content);
   const realtype locmin = invTest(*xvec, *zvec);
   return (locmin < HALF);
 }
 
 booleantype N_VConstrMask_Cuda(N_Vector C, N_Vector X, N_Vector M)
 {
-  const vector_type *cvec = static_cast<vector_type*>(C->content);
-  const vector_type *xvec = static_cast<vector_type*>(X->content);
-  vector_type *mvec = static_cast<vector_type*>(M->content);
+  const vector_content *cvec = static_cast<vector_content*>(C->content);
+  const vector_content *xvec = static_cast<vector_content*>(X->content);
+  vector_content *mvec = static_cast<vector_content*>(M->content);
   const realtype locsum = constrMask(*cvec, *xvec, *mvec);
   return (locsum < HALF);
 }
 
 realtype N_VMinQuotient_Cuda(N_Vector num, N_Vector denom)
 {
-  const vector_type *numvec = static_cast<vector_type*>(num->content);
-  const vector_type *denvec = static_cast<vector_type*>(denom->content);
+  const vector_content *numvec = static_cast<vector_content*>(num->content);
+  const vector_content *denvec = static_cast<vector_content*>(denom->content);
   return(minQuotient(*numvec, *denvec));
 }
 
@@ -514,14 +532,14 @@ realtype N_VMinQuotient_Cuda(N_Vector num, N_Vector denom)
 int N_VLinearCombination_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector Z)
 {
   cudaError_t err;
-  vector_type** Xv;
-  vector_type*  Zv;
+  vector_content** Xv;
+  vector_content*  Zv;
 
-  Zv = static_cast<vector_type*>(Z->content);
+  Zv = static_cast<vector_content*>(Z->content);
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Xv[i] = static_cast<vector_type*>(X[i]->content);
+    Xv[i] = static_cast<vector_content*>(X[i]->content);
 
   err = linearCombination(nvec, c, Xv, Zv);
 
@@ -534,19 +552,19 @@ int N_VScaleAddMulti_Cuda(int nvec, realtype* c, N_Vector X, N_Vector* Y,
                            N_Vector* Z)
 {
   cudaError_t err;
-  vector_type*  Xv;
-  vector_type** Yv;
-  vector_type** Zv;
+  vector_content*  Xv;
+  vector_content** Yv;
+  vector_content** Zv;
 
-  Xv = static_cast<vector_type*>(X->content);
+  Xv = static_cast<vector_content*>(X->content);
 
-  Yv = new vector_type*[nvec];
+  Yv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Yv[i] = static_cast<vector_type*>(Y[i]->content);
+    Yv[i] = static_cast<vector_content*>(Y[i]->content);
 
-  Zv = new vector_type*[nvec];
+  Zv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Zv[i] = static_cast<vector_type*>(Z[i]->content);
+    Zv[i] = static_cast<vector_content*>(Z[i]->content);
 
   err = scaleAddMulti(nvec, c, Xv, Yv, Zv);
 
@@ -560,14 +578,14 @@ int N_VScaleAddMulti_Cuda(int nvec, realtype* c, N_Vector X, N_Vector* Y,
 int N_VDotProdMulti_Cuda(int nvec, N_Vector x, N_Vector* Y, realtype* dotprods)
 {
   cudaError_t err;
-  vector_type*  Xv;
-  vector_type** Yv;
+  vector_content*  Xv;
+  vector_content** Yv;
 
-  Xv = static_cast<vector_type*>(x->content);
+  Xv = static_cast<vector_content*>(x->content);
 
-  Yv = new vector_type*[nvec];
+  Yv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Yv[i] = static_cast<vector_type*>(Y[i]->content);
+    Yv[i] = static_cast<vector_content*>(Y[i]->content);
 
   err = dotProdMulti(nvec, Xv, Yv, dotprods);
 
@@ -588,21 +606,21 @@ int N_VLinearSumVectorArray_Cuda(int nvec, realtype a, N_Vector* X, realtype b,
                                  N_Vector* Y, N_Vector* Z)
 {
   cudaError_t err;
-  vector_type** Xv;
-  vector_type** Yv;
-  vector_type** Zv;
+  vector_content** Xv;
+  vector_content** Yv;
+  vector_content** Zv;
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Xv[i] = static_cast<vector_type*>(X[i]->content);
+    Xv[i] = static_cast<vector_content*>(X[i]->content);
 
-  Yv = new vector_type*[nvec];
+  Yv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Yv[i] = static_cast<vector_type*>(Y[i]->content);
+    Yv[i] = static_cast<vector_content*>(Y[i]->content);
 
-  Zv = new vector_type*[nvec];
+  Zv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Zv[i] = static_cast<vector_type*>(Z[i]->content);
+    Zv[i] = static_cast<vector_content*>(Z[i]->content);
 
   err = linearSumVectorArray(nvec, a, Xv, b, Yv, Zv);
 
@@ -617,16 +635,16 @@ int N_VLinearSumVectorArray_Cuda(int nvec, realtype a, N_Vector* X, realtype b,
 int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
 {
   cudaError_t err;
-  vector_type** Xv;
-  vector_type** Zv;
+  vector_content** Xv;
+  vector_content** Zv;
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Xv[i] = static_cast<vector_type*>(X[i]->content);
+    Xv[i] = static_cast<vector_content*>(X[i]->content);
 
-  Zv = new vector_type*[nvec];
+  Zv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Zv[i] = static_cast<vector_type*>(Z[i]->content);
+    Zv[i] = static_cast<vector_content*>(Z[i]->content);
 
   err = scaleVectorArray(nvec, c, Xv, Zv);
 
@@ -640,11 +658,11 @@ int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
 int N_VConstVectorArray_Cuda(int nvec, realtype c, N_Vector* Z)
 {
   cudaError_t err;
-  vector_type** Zv;
+  vector_content** Zv;
 
-  Zv = new vector_type*[nvec];
+  Zv = new vector_content*[nvec];
   for (int i=0; i<nvec; i++)
-    Zv[i] = static_cast<vector_type*>(Z[i]->content);
+    Zv[i] = static_cast<vector_content*>(Z[i]->content);
 
   err = constVectorArray(nvec, c, Zv);
 
@@ -658,19 +676,19 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
                                 realtype* norms)
 {
   cudaError_t err;
-  const vector_type* xvec = static_cast<vector_type*>(X[0]->content);
-  vector_type** Xv;
-  vector_type** Wv;
+  const vector_content* xvec = static_cast<vector_content*>(X[0]->content);
+  vector_content** Xv;
+  vector_content** Wv;
 
   sunindextype N = xvec->size();
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Xv[k] = static_cast<vector_type*>(X[k]->content);
+    Xv[k] = static_cast<vector_content*>(X[k]->content);
 
-  Wv = new vector_type*[nvec];
+  Wv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Wv[k] = static_cast<vector_type*>(W[k]->content);
+    Wv[k] = static_cast<vector_content*>(W[k]->content);
 
   err = wL2NormSquareVectorArray(nvec, Xv, Wv, norms);
 
@@ -690,22 +708,22 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
                                     N_Vector id, realtype* norms)
 {
   cudaError_t err;
-  const vector_type* xvec = static_cast<vector_type*>(X[0]->content);
-  vector_type** Xv;
-  vector_type** Wv;
-  vector_type*  IDv;
+  const vector_content* xvec = static_cast<vector_content*>(X[0]->content);
+  vector_content** Xv;
+  vector_content** Wv;
+  vector_content*  IDv;
 
   sunindextype N = xvec->size();
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Xv[k] = static_cast<vector_type*>(X[k]->content);
+    Xv[k] = static_cast<vector_content*>(X[k]->content);
 
-  Wv = new vector_type*[nvec];
+  Wv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Wv[k] = static_cast<vector_type*>(W[k]->content);
+    Wv[k] = static_cast<vector_content*>(W[k]->content);
 
-  IDv = static_cast<vector_type*>(id->content);
+  IDv = static_cast<vector_content*>(id->content);
 
   err = wL2NormSquareMaskVectorArray(nvec, Xv, Wv, IDv, norms);
 
@@ -725,23 +743,23 @@ int N_VScaleAddMultiVectorArray_Cuda(int nvec, int nsum, realtype* c,
                                      N_Vector* X, N_Vector** Y, N_Vector** Z)
 {
   cudaError_t err;
-  vector_type** Xv;
-  vector_type** Yv;
-  vector_type** Zv;
+  vector_content** Xv;
+  vector_content** Yv;
+  vector_content** Zv;
 
-  Xv = new vector_type*[nvec];
+  Xv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Xv[k] = static_cast<vector_type*>(X[k]->content);
+    Xv[k] = static_cast<vector_content*>(X[k]->content);
 
-  Yv = new vector_type*[nsum*nvec];
-  for (int k=0; k<nvec; k++)
-    for (int j=0; j<nsum; j++)
-      Yv[k*nsum+j] = static_cast<vector_type*>(Y[j][k]->content);
-
-  Zv = new vector_type*[nsum*nvec];
+  Yv = new vector_content*[nsum*nvec];
   for (int k=0; k<nvec; k++)
     for (int j=0; j<nsum; j++)
-      Zv[k*nsum+j] = static_cast<vector_type*>(Z[j][k]->content);
+      Yv[k*nsum+j] = static_cast<vector_content*>(Y[j][k]->content);
+
+  Zv = new vector_content*[nsum*nvec];
+  for (int k=0; k<nvec; k++)
+    for (int j=0; j<nsum; j++)
+      Zv[k*nsum+j] = static_cast<vector_content*>(Z[j][k]->content);
 
   err = scaleAddMultiVectorArray(nvec, nsum, c, Xv, Yv, Zv);
 
@@ -757,17 +775,17 @@ int N_VLinearCombinationVectorArray_Cuda(int nvec, int nsum, realtype* c,
                                          N_Vector** X, N_Vector* Z)
 {
   cudaError_t err;
-  vector_type** Xv;
-  vector_type** Zv;
+  vector_content** Xv;
+  vector_content** Zv;
 
-  Xv = new vector_type*[nsum*nvec];
+  Xv = new vector_content*[nsum*nvec];
   for (int k=0; k<nvec; k++)
     for (int j=0; j<nsum; j++)
-      Xv[k*nsum+j] = static_cast<vector_type*>(X[j][k]->content);
+      Xv[k*nsum+j] = static_cast<vector_content*>(X[j][k]->content);
 
-  Zv = new vector_type*[nvec];
+  Zv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
-    Zv[k] = static_cast<vector_type*>(Z[k]->content);
+    Zv[k] = static_cast<vector_content*>(Z[k]->content);
 
   err = linearCombinationVectorArray(nvec, nsum, c, Xv, Zv);
 

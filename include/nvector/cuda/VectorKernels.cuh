@@ -22,8 +22,11 @@
 #include <cuda_runtime.h>
 
 
-namespace suncudavec
+namespace sundials
 {
+namespace device
+{
+
 
 /* -----------------------------------------------------------------
  * The namespace for CUDA kernels
@@ -618,7 +621,7 @@ minQuotientKernel(const T MAX_VAL, const T *num, const T *den, T *min_quotient, 
 
 
 template <typename T, typename I>
-inline cudaError_t setConst(T a, Vector<T,I>& X)
+inline cudaError_t setConst(T a, CudaVectorContent<T,I>& X)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -631,7 +634,7 @@ inline cudaError_t setConst(T a, Vector<T,I>& X)
 }
 
 template <typename T, typename I>
-inline cudaError_t linearSum(T a, const Vector<T,I>& X, T b, const Vector<T,I>& Y, Vector<T,I>& Z)
+inline cudaError_t linearSum(T a, const CudaVectorContent<T,I>& X, T b, const CudaVectorContent<T,I>& Y, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -644,7 +647,7 @@ inline cudaError_t linearSum(T a, const Vector<T,I>& X, T b, const Vector<T,I>& 
 }
 
 template <typename T, typename I>
-inline cudaError_t prod(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>& Z)
+inline cudaError_t prod(const CudaVectorContent<T,I>& X, const CudaVectorContent<T,I>& Y, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -657,7 +660,7 @@ inline cudaError_t prod(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>&
 }
 
 template <typename T, typename I>
-inline cudaError_t div(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>& Z)
+inline cudaError_t div(const CudaVectorContent<T,I>& X, const CudaVectorContent<T,I>& Y, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -670,7 +673,7 @@ inline cudaError_t div(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>& 
 }
 
 template <typename T, typename I>
-inline cudaError_t scale(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
+inline cudaError_t scale(T const a, const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -683,7 +686,7 @@ inline cudaError_t scale(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
 }
 
 template <typename T, typename I>
-inline cudaError_t absVal(const Vector<T,I>& X, Vector<T,I>& Z)
+inline cudaError_t absVal(const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -696,7 +699,7 @@ inline cudaError_t absVal(const Vector<T,I>& X, Vector<T,I>& Z)
 }
 
 template <typename T, typename I>
-inline cudaError_t inv(const Vector<T,I>& X, Vector<T,I>& Z)
+inline cudaError_t inv(const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -709,7 +712,7 @@ inline cudaError_t inv(const Vector<T,I>& X, Vector<T,I>& Z)
 }
 
 template <typename T, typename I>
-inline cudaError_t addConst(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
+inline cudaError_t addConst(T const a, const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -723,7 +726,7 @@ inline cudaError_t addConst(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
 
 
 template <typename T, typename I>
-inline cudaError_t compare(T const c, const Vector<T,I>& X, Vector<T,I>& Z)
+inline cudaError_t compare(T const c, const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
@@ -737,7 +740,7 @@ inline cudaError_t compare(T const c, const Vector<T,I>& X, Vector<T,I>& Z)
 
 
 template <typename T, typename I>
-inline T dotProd(const Vector<T,I>& x, const Vector<T,I>& y)
+inline T dotProd(const CudaVectorContent<T,I>& x, const CudaVectorContent<T,I>& y)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -772,7 +775,7 @@ inline T dotProd(const Vector<T,I>& x, const Vector<T,I>& y)
 }
 
 template <typename T, typename I>
-inline T maxNorm(const Vector<T,I>& x)
+inline T maxNorm(const CudaVectorContent<T,I>& x)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -808,7 +811,7 @@ inline T maxNorm(const Vector<T,I>& x)
 }
 
 template <typename T, typename I>
-inline T wL2NormSquareMask(const Vector<T,I>& x, const Vector<T,I>& w, const Vector<T,I>& id)
+inline T wL2NormSquareMask(const CudaVectorContent<T,I>& x, const CudaVectorContent<T,I>& w, const CudaVectorContent<T,I>& id)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -843,7 +846,7 @@ inline T wL2NormSquareMask(const Vector<T,I>& x, const Vector<T,I>& w, const Vec
 }
 
 template <typename T, typename I>
-inline T findMin(const Vector<T,I>& x)
+inline T findMin(const CudaVectorContent<T,I>& x)
 {
   T maxVal = std::numeric_limits<T>::max();
 
@@ -882,7 +885,7 @@ inline T findMin(const Vector<T,I>& x)
 
 
 template <typename T, typename I>
-inline T wL2NormSquare(const Vector<T,I>& x, const Vector<T,I>& y)
+inline T wL2NormSquare(const CudaVectorContent<T,I>& x, const CudaVectorContent<T,I>& y)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -918,7 +921,7 @@ inline T wL2NormSquare(const Vector<T,I>& x, const Vector<T,I>& y)
 
 
 template <typename T, typename I>
-inline T L1Norm(const Vector<T,I>& x)
+inline T L1Norm(const CudaVectorContent<T,I>& x)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -954,7 +957,7 @@ inline T L1Norm(const Vector<T,I>& x)
 
 
 template <typename T, typename I>
-inline T invTest(const Vector<T,I>& x, Vector<T,I>& z)
+inline T invTest(const CudaVectorContent<T,I>& x, CudaVectorContent<T,I>& z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -990,7 +993,7 @@ inline T invTest(const Vector<T,I>& x, Vector<T,I>& z)
 
 
 template <typename T, typename I>
-inline T constrMask(const Vector<T,I>& c, const Vector<T,I>& x, Vector<T,I>& m)
+inline T constrMask(const CudaVectorContent<T,I>& c, const CudaVectorContent<T,I>& x, CudaVectorContent<T,I>& m)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
@@ -1026,7 +1029,7 @@ inline T constrMask(const Vector<T,I>& c, const Vector<T,I>& x, Vector<T,I>& m)
 
 
 template <typename T, typename I>
-inline T minQuotient(const Vector<T,I>& num, const Vector<T,I>& den)
+inline T minQuotient(const CudaVectorContent<T,I>& num, const CudaVectorContent<T,I>& den)
 {
   // Starting value for min reduction
   const T maxVal = std::numeric_limits<T>::max();
@@ -1066,7 +1069,8 @@ inline T minQuotient(const Vector<T,I>& num, const Vector<T,I>& den)
 }
 
 
-} // namespace nvec
+} // namespace device
+} // namespace sundials
 
 
 #endif // _VECTOR_KERNELS_CUH_

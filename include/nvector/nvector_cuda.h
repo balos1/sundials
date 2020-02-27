@@ -92,6 +92,8 @@ SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
 
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);
 
+SUNDIALS_EXPORT void N_VSetContent_Cuda(N_Vector x, N_VectorContent_Cuda content);
+
 SUNDIALS_EXPORT void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 
 SUNDIALS_EXPORT void N_VCopyToDevice_Cuda(N_Vector v);

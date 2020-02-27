@@ -118,6 +118,10 @@ int Test_N_VCloneVectorArray(int count, N_Vector W,
     printf(">>> FAILED test -- N_VCloneVectorArray, Proc %d \n", myid);
     printf("    count = %d, expected *vs = NULL \n\n",count);
     return(1);
+  } else if (vs == NULL) {
+    printf(">>> FAILED test -- N_VCloneVectorArray, Proc %d \n", myid);
+    printf("    vs = NULL \n\n");
+    return(1);
   }
 
   /* check vectors in array */
@@ -141,8 +145,7 @@ int Test_N_VCloneVectorArray(int count, N_Vector W,
 
   N_VDestroyVectorArray(vs, count);
 
-  if (myid == 0)
-    printf("PASSED test -- N_VCloneVectorArray \n");
+  if (myid == 0) printf("PASSED test -- N_VCloneVectorArray \n");
 
   /* find max time across all processes */
   maxt = max_time(W, stop_time - start_time);

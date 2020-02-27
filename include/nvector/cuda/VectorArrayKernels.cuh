@@ -22,7 +22,9 @@
 #include <cuda_runtime.h>
 
 
-namespace suncudavec
+namespace sundials
+{
+namespace device
 {
 
 
@@ -346,7 +348,7 @@ linearCombinationVectorArrayKernel(int nv, int ns, T* c, T** xd, T** zd, I n)
  */
 
 template <typename T, typename I>
-inline cudaError_t linearCombination(int nvec, T* c, Vector<T,I>** X, Vector<T,I>* Z)
+inline cudaError_t linearCombination(int nvec, T* c, CudaVectorContent<T,I>** X,CudaVectorContent<T,I>* Z)
 {
   cudaError_t err;
 
@@ -397,8 +399,8 @@ inline cudaError_t linearCombination(int nvec, T* c, Vector<T,I>** X, Vector<T,I
 
 
 template <typename T, typename I>
-inline cudaError_t scaleAddMulti(int nvec, T* c, Vector<T,I>* X,
-                                 Vector<T,I>** Y, Vector<T,I>** Z)
+inline cudaError_t scaleAddMulti(int nvec, T* c,CudaVectorContent<T,I>* X,
+                                CudaVectorContent<T,I>** Y,CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -463,7 +465,7 @@ inline cudaError_t scaleAddMulti(int nvec, T* c, Vector<T,I>* X,
 
 
 template <typename T, typename I>
-inline cudaError_t dotProdMulti(int nvec, Vector<T,I>* x, Vector<T,I>** Y,
+inline cudaError_t dotProdMulti(int nvec,CudaVectorContent<T,I>* x,CudaVectorContent<T,I>** Y,
                                 T* dots)
 {
   cudaError_t err;
@@ -551,8 +553,8 @@ inline cudaError_t dotProdMulti(int nvec, Vector<T,I>* x, Vector<T,I>** Y,
  */
 
 template <typename T, typename I>
-inline cudaError_t linearSumVectorArray(int nvec, T a, Vector<T,I>** X, T b,
-                                        Vector<T,I>** Y, Vector<T,I>** Z)
+inline cudaError_t linearSumVectorArray(int nvec, T a,CudaVectorContent<T,I>** X, T b,
+                                       CudaVectorContent<T,I>** Y,CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -622,8 +624,8 @@ inline cudaError_t linearSumVectorArray(int nvec, T a, Vector<T,I>** X, T b,
 
 
 template <typename T, typename I>
-inline cudaError_t scaleVectorArray(int nvec, T* c, Vector<T,I>** X,
-                                    Vector<T,I>** Z)
+inline cudaError_t scaleVectorArray(int nvec, T* c,CudaVectorContent<T,I>** X,
+                                   CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -685,7 +687,7 @@ inline cudaError_t scaleVectorArray(int nvec, T* c, Vector<T,I>** X,
 
 
 template <typename T, typename I>
-inline cudaError_t constVectorArray(int nvec, T c, Vector<T,I>** Z)
+inline cudaError_t constVectorArray(int nvec, T c,CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -726,8 +728,8 @@ inline cudaError_t constVectorArray(int nvec, T c, Vector<T,I>** Z)
 
 
 template <typename T, typename I>
-inline cudaError_t wL2NormSquareVectorArray(int nvec, Vector<T,I>** X,
-                                            Vector<T,I>** W, T* nrm)
+inline cudaError_t wL2NormSquareVectorArray(int nvec,CudaVectorContent<T,I>** X,
+                                           CudaVectorContent<T,I>** W, T* nrm)
 {
   cudaError_t err;
 
@@ -822,8 +824,8 @@ inline cudaError_t wL2NormSquareVectorArray(int nvec, Vector<T,I>** X,
 
 
 template <typename T, typename I>
-inline cudaError_t wL2NormSquareMaskVectorArray(int nvec, Vector<T,I>** X,
-                                           Vector<T,I>** W, Vector<T,I>* ID,
+inline cudaError_t wL2NormSquareMaskVectorArray(int nvec,CudaVectorContent<T,I>** X,
+                                          CudaVectorContent<T,I>** W,CudaVectorContent<T,I>* ID,
                                            T* nrm)
 {
   cudaError_t err;
@@ -921,8 +923,8 @@ inline cudaError_t wL2NormSquareMaskVectorArray(int nvec, Vector<T,I>** X,
 
 template <typename T, typename I>
 inline cudaError_t scaleAddMultiVectorArray(int nvec, int nsum, T* c,
-                                            Vector<T,I>** X, Vector<T,I>** Y,
-                                            Vector<T,I>** Z)
+                                           CudaVectorContent<T,I>** X,CudaVectorContent<T,I>** Y,
+                                           CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -1000,7 +1002,7 @@ inline cudaError_t scaleAddMultiVectorArray(int nvec, int nsum, T* c,
 
 template <typename T, typename I>
 inline cudaError_t linearCombinationVectorArray(int nvec, int nsum, T* c,
-                                                Vector<T,I>** X, Vector<T,I>** Z)
+                                               CudaVectorContent<T,I>** X,CudaVectorContent<T,I>** Z)
 {
   cudaError_t err;
 
@@ -1061,8 +1063,8 @@ inline cudaError_t linearCombinationVectorArray(int nvec, int nsum, T* c,
   return cudaGetLastError();
 }
 
-
-} // namespace nvec
+} // namespace device
+} // namespace cuda
 
 
 

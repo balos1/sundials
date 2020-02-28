@@ -127,7 +127,7 @@ int MemoryClass::Deallocate(void* host_ptr, void* device_ptr)
   return 0;
 }
 
-void MemoryClass::CopyToDev(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream)
+void MemoryClass::CopyToDevice(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream)
 {
   SUN_GPU_PREFIX(Error_t) err;
 
@@ -139,7 +139,7 @@ void MemoryClass::CopyToDev(size_t mem_size, void* host_ptr, void* device_ptr, S
     err = SUN_GPU_PREFIX(StreamSynchronize)(stream);
     if(err != SUN_GPU_PREFIX(Success))
       std::cerr << "Failed to synchronize stream in "
-                << "MemoryClass::CopyToDev "
+                << "MemoryClass::CopyToDevice "
                 << "(error code " << err << ")\n";
   } else {
     err = SUN_GPU_PREFIX(MemcpyAsync)(device_ptr, host_ptr, mem_size,
@@ -147,12 +147,12 @@ void MemoryClass::CopyToDev(size_t mem_size, void* host_ptr, void* device_ptr, S
                                       stream);
     if(err != SUN_GPU_PREFIX(Success))
       std::cerr << "Failed to copy vector from host to device in "
-                << "MemoryClass::CopyToDev "
+                << "MemoryClass::CopyToDevice "
                 << "(error code " << err << ")\n";
   }
 }
 
-void MemoryClass::CopyFromDev(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream)
+void MemoryClass::CopyFromDevice(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream)
 {
   SUN_GPU_PREFIX(Error_t) err;
 
@@ -164,7 +164,7 @@ void MemoryClass::CopyFromDev(size_t mem_size, void* host_ptr, void* device_ptr,
     err = SUN_GPU_PREFIX(StreamSynchronize)(stream);
     if(err != SUN_GPU_PREFIX(Success))
       std::cerr << "Failed to synchronize stream in "
-                << "MemoryClass::CopyFromDev "
+                << "MemoryClass::CopyFromDevice "
                 << "(error code " << err << ")\n";
   } else {
     err = SUN_GPU_PREFIX(MemcpyAsync)(host_ptr, device_ptr, mem_size,
@@ -172,7 +172,7 @@ void MemoryClass::CopyFromDev(size_t mem_size, void* host_ptr, void* device_ptr,
                                       stream);
     if(err != SUN_GPU_PREFIX(Success))
       std::cerr << "Failed to copy vector from device to host in "
-                << "MemoryClass::CopyFromDev "
+                << "MemoryClass::CopyFromDevice "
                 << "(error code " << err << ")\n";
   }
 }

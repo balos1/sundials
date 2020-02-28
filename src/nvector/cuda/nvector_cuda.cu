@@ -202,7 +202,7 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
 sunindextype N_VGetLength_Cuda(N_Vector v)
 {
   vector_content* xd = static_cast<vector_content*>(v->content);
-  return (xd->size());
+  return (xd->length());
 }
 
 /* ----------------------------------------------------------------------------
@@ -231,20 +231,16 @@ realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
 booleantype N_VIsManagedMemory_Cuda(N_Vector x)
 {
   vector_content* xv = static_cast<vector_content*>(x->content);
-  return (xv->isManaged());
+  return (xv->getMemoryType() == SUNMEMTYPE_UVM);
 }
 
 /* ----------------------------------------------------------------------------
  * Sets the vector content.
- * WARNING: N_VSetContent_Cuda does not delete content that is already attached!
+ * This will result in ownership of the content object being transfered to the
+ * N_Vector. When N_VDestroy is called, the content will be deleted.
  */
-void N_VSetContent_Cuda(N_Vector x, N_VectorContent_Cuda content)
+void N_VGiveContent_Cuda(N_Vector x, N_VectorContent_Cuda content)
 {
-#ifdef DEBUG_MODE
-  if (x->content != NULL) {
-    printf("ERROR in N_VSetContent_Cuda: content is not NULL, memory will be leaked!\n")
-  }
-#endif
   x->content = content;
 }
 
@@ -265,7 +261,7 @@ void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream)
 void N_VCopyToDevice_Cuda(N_Vector x)
 {
   vector_content* xv = static_cast<vector_content*>(x->content);
-  xv->copyToDev();
+  xv->copyToDevice();
 }
 
 /* ----------------------------------------------------------------------------
@@ -275,7 +271,7 @@ void N_VCopyToDevice_Cuda(N_Vector x)
 void N_VCopyFromDevice_Cuda(N_Vector x)
 {
   vector_content* xv = static_cast<vector_content*>(x->content);
-  xv->copyFromDev();
+  xv->copyFromDevice();
 }
 
 /* ----------------------------------------------------------------------------
@@ -296,7 +292,7 @@ void N_VPrintFile_Cuda(N_Vector x, FILE *outfile)
   sunindextype i;
   vector_content* xd = static_cast<vector_content*>(x->content);
 
-  for (i = 0; i < xd->size(); i++) {
+  for (i = 0; i < xd->length(); i++) {
 #if defined(SUNDIALS_EXTENDED_PRECISION)
     fprintf(outfile, "%35.32Lg\n", xd->host()[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
@@ -370,7 +366,7 @@ void N_VDestroy_Cuda(N_Vector v)
 void N_VSpace_Cuda(N_Vector X, sunindextype *lrw, sunindextype *liw)
 {
   vector_content* x = static_cast<vector_content*>(X->content);
-  *lrw = x->size();
+  *lrw = x->length();
   *liw = 2;
 }
 
@@ -456,7 +452,7 @@ realtype N_VWrmsNorm_Cuda(N_Vector X, N_Vector W)
 {
   const realtype sum = N_VWSqrSumLocal_Cuda(X, W);
   const vector_content *xvec = static_cast<vector_content*>(X->content);
-  return std::sqrt(sum/xvec->size());
+  return std::sqrt(sum/xvec->length());
 }
 
 realtype N_VWSqrSumMaskLocal_Cuda(N_Vector X, N_Vector W, N_Vector Id)
@@ -471,7 +467,7 @@ realtype N_VWrmsNormMask_Cuda(N_Vector X, N_Vector W, N_Vector Id)
 {
   const realtype sum = N_VWSqrSumMaskLocal_Cuda(X, W, Id);
   const vector_content *xvec = static_cast<vector_content*>(X->content);
-  return std::sqrt(sum/xvec->size());
+  return std::sqrt(sum/xvec->length());
 }
 
 realtype N_VMin_Cuda(N_Vector X)
@@ -680,7 +676,7 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   vector_content** Xv;
   vector_content** Wv;
 
-  sunindextype N = xvec->size();
+  sunindextype N = xvec->length();
 
   Xv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)
@@ -713,7 +709,7 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   vector_content** Wv;
   vector_content*  IDv;
 
-  sunindextype N = xvec->size();
+  sunindextype N = xvec->length();
 
   Xv = new vector_content*[nvec];
   for (int k=0; k<nvec; k++)

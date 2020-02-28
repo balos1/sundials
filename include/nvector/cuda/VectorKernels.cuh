@@ -629,7 +629,7 @@ inline cudaError_t setConst(T a, CudaVectorContent<T,I>& X)
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::setConstKernel<<<grid, block, 0, stream>>>(a, X.device(), X.size());
+  math_kernels::setConstKernel<<<grid, block, 0, stream>>>(a, X.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -642,7 +642,7 @@ inline cudaError_t linearSum(T a, const CudaVectorContent<T,I>& X, T b, const Cu
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::linearSumKernel<<<grid, block, 0, stream>>>(a, X.device(), b, Y.device(), Z.device(), X.size());
+  math_kernels::linearSumKernel<<<grid, block, 0, stream>>>(a, X.device(), b, Y.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -655,7 +655,7 @@ inline cudaError_t prod(const CudaVectorContent<T,I>& X, const CudaVectorContent
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::prodKernel<<<grid, block, 0, stream>>>(X.device(), Y.device(), Z.device(), X.size());
+  math_kernels::prodKernel<<<grid, block, 0, stream>>>(X.device(), Y.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -668,7 +668,7 @@ inline cudaError_t div(const CudaVectorContent<T,I>& X, const CudaVectorContent<
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::divKernel<<<grid, block, 0, stream>>>(X.device(), Y.device(), Z.device(), X.size());
+  math_kernels::divKernel<<<grid, block, 0, stream>>>(X.device(), Y.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -681,7 +681,7 @@ inline cudaError_t scale(T const a, const CudaVectorContent<T,I>& X, CudaVectorC
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::scaleKernel<<<grid, block, 0, stream>>>(a, X.device(), Z.device(), X.size());
+  math_kernels::scaleKernel<<<grid, block, 0, stream>>>(a, X.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -694,7 +694,7 @@ inline cudaError_t absVal(const CudaVectorContent<T,I>& X, CudaVectorContent<T,I
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::absKernel<<<grid, block, 0, stream>>>(X.device(), Z.device(), X.size());
+  math_kernels::absKernel<<<grid, block, 0, stream>>>(X.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -707,7 +707,7 @@ inline cudaError_t inv(const CudaVectorContent<T,I>& X, CudaVectorContent<T,I>& 
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::invKernel<<<grid, block, 0, stream>>>(X.device(), Z.device(), X.size());
+  math_kernels::invKernel<<<grid, block, 0, stream>>>(X.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -720,7 +720,7 @@ inline cudaError_t addConst(T const a, const CudaVectorContent<T,I>& X, CudaVect
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::addConstKernel<<<grid, block, 0, stream>>>(a, X.device(), Z.device(), X.size());
+  math_kernels::addConstKernel<<<grid, block, 0, stream>>>(a, X.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -734,7 +734,7 @@ inline cudaError_t compare(T const c, const CudaVectorContent<T,I>& X, CudaVecto
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::compareKernel<<<grid, block, 0, stream>>>(c, X.device(), Z.device(), X.size());
+  math_kernels::compareKernel<<<grid, block, 0, stream>>>(c, X.device(), Z.device(), X.length());
   return cudaGetLastError();
 }
 
@@ -749,7 +749,7 @@ inline T dotProd(const CudaVectorContent<T,I>& x, const CudaVectorContent<T,I>& 
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::dotProdKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), y.device(), p.devBuffer(), x.size());
+  math_kernels::dotProdKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), y.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -784,7 +784,7 @@ inline T maxNorm(const CudaVectorContent<T,I>& x)
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::maxNormKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), p.devBuffer(), x.size());
+  math_kernels::maxNormKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -820,7 +820,7 @@ inline T wL2NormSquareMask(const CudaVectorContent<T,I>& x, const CudaVectorCont
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::wL2NormSquareMaskKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), w.device(), id.device(), p.devBuffer(), x.size());
+  math_kernels::wL2NormSquareMaskKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), w.device(), id.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -857,7 +857,7 @@ inline T findMin(const CudaVectorContent<T,I>& x)
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::findMinKernel<T,I><<<grid, block, shMemSize, stream>>>(maxVal, x.device(), p.devBuffer(), x.size());
+  math_kernels::findMinKernel<T,I><<<grid, block, shMemSize, stream>>>(maxVal, x.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -894,7 +894,7 @@ inline T wL2NormSquare(const CudaVectorContent<T,I>& x, const CudaVectorContent<
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::wL2NormSquareKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), y.device(), p.devBuffer(), x.size());
+  math_kernels::wL2NormSquareKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), y.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -930,7 +930,7 @@ inline T L1Norm(const CudaVectorContent<T,I>& x)
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::L1NormKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), p.devBuffer(), x.size());
+  math_kernels::L1NormKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -966,7 +966,7 @@ inline T invTest(const CudaVectorContent<T,I>& x, CudaVectorContent<T,I>& z)
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::invTestKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), z.device(), p.devBuffer(), x.size());
+  math_kernels::invTestKernel<T,I><<<grid, block, shMemSize, stream>>>(x.device(), z.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -1002,7 +1002,7 @@ inline T constrMask(const CudaVectorContent<T,I>& c, const CudaVectorContent<T,I
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::constrMaskKernel<T,I><<<grid, block, shMemSize, stream>>>(c.device(), x.device(), m.device(), p.devBuffer(), x.size());
+  math_kernels::constrMaskKernel<T,I><<<grid, block, shMemSize, stream>>>(c.device(), x.device(), m.device(), p.devBuffer(), x.length());
 
   unsigned n = grid;
   unsigned nmax = 2*block;
@@ -1041,7 +1041,7 @@ inline T minQuotient(const CudaVectorContent<T,I>& num, const CudaVectorContent<
   unsigned shMemSize          = p.shmem();
   const cudaStream_t stream   = p.stream();
 
-  math_kernels::minQuotientKernel<T,I><<<grid, block, shMemSize, stream>>>(maxVal, num.device(), den.device(), p.devBuffer(), num.size());
+  math_kernels::minQuotientKernel<T,I><<<grid, block, shMemSize, stream>>>(maxVal, num.device(), den.device(), p.devBuffer(), num.length());
 
   // All quotients are computed by now. Find the minimum.
   unsigned n = grid;

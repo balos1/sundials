@@ -23,6 +23,8 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
+#include <sundials/sundials_memory.h>
+
 #define SUN_GPU_PREFIX(STR) cuda ## STR
 
 namespace sundials
@@ -36,14 +38,6 @@ void* AllocUVM(size_t mem_size);
 void FreeHost(void* ptr);
 void FreeDevice(void* ptr);
 void FreeUVM(void* ptr);
-
-// SUNDIALS supported memory types.
-typedef enum
-{
-  SUNMEMTYPE_HOST,   // memory accessible from the host
-  SUNMEMTYPE_DEVICE, // memory accessible only on the device
-  SUNMEMTYPE_UVM     // memory accessible from the host or device
-} SUNMemoryType;
 
 // Memory management class.
 class MemoryClass
@@ -107,8 +101,8 @@ public:
 
   virtual int Allocate(size_t mem_size, void** host_ptr, void** device_ptr);
   virtual int Deallocate(void* host_ptr, void* device_ptr);
-  virtual void CopyToDev(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream = 0);
-  virtual void CopyFromDev(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream = 0);
+  virtual void CopyToDevice(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream = 0);
+  virtual void CopyFromDevice(size_t mem_size, void* host_ptr, void* device_ptr, SUN_GPU_PREFIX(Stream_t) stream = 0);
 
 private:
   void*(*AllocHost_)(size_t mem_size);

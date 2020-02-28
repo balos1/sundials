@@ -41,6 +41,7 @@
 #include <iostream>
 
 #include <sundials/sundials_config.h>
+#include <sundials/sundials_memory.h>
 #include <nvector/nvector_cuda.h>
 
 namespace sundials
@@ -54,28 +55,31 @@ class VectorContentInterface
   : public _N_VectorContent_Cuda
 {
   // Returns the length of the vector
-  virtual TypeInt size() const = 0;
+  virtual TypeInt length() const = 0;
 
   // Returns a mutable pointer to the host data
   virtual TypeReal* host() = 0;
 
   // Returns a const pointer to the host data
+  // It is required that the data is contigious and stride-1 accessible.
   virtual const TypeReal* host() const = 0;
 
   // Returns a mutable pointer to the device data
+  // It is required that the data is contigious and stride-1 accessible.
   virtual TypeReal* device() = 0;
 
   // Returns a const pointer to the device data
+  // It is required that the data is contigious and stride-1 accessible.
   virtual const TypeReal* device() const = 0;
 
-  // Returns a bool indicating if the memory being used is managed memory (true) or unmanaged memory (false).
-  virtual bool isManaged() const = 0;
+  // Returns the SUNMemoryType used (can be SUNMEMTYPE_DEVICE or SUNMEMTYPE_UVM)
+  virtual SUNMemoryType getMemoryType() const = 0;
 
   // Copies the host data into the device data pointer. If the memory is managed, the copy is not required.
-  virtual void copyToDev() = 0;
+  virtual void copyToDevice() = 0;
 
   // Copies the device data into the host data pointer. If the memory is managed, the copy is not required.
-  virtual void copyFromDev() = 0;
+  virtual void copyFromDevice() = 0;
 };
 
 

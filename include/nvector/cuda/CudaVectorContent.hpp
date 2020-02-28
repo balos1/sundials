@@ -89,8 +89,8 @@ public:
 
   // Copy constructor does not copy data array values
   explicit CudaVectorContent(const CudaVectorContent& v)
-  : size_(v.size()),
-    mem_size_(v.size()*sizeof(TypeReal)),
+  : size_(v.length()),
+    mem_size_(v.length()*sizeof(TypeReal)),
     stream_(v.stream()),
     mem_manager_(new MemoryClass(*v.mem_manager_)),
     own_data_(true),
@@ -102,8 +102,8 @@ public:
     mem_manager_->Allocate(mem_size_, reinterpret_cast<void**>(&host_ptr_), reinterpret_cast<void**>(&device_ptr_));
 
     // Allocate the partitioning
-    part_stream_ = new StreamPartitioning<TypeReal, TypeInt>(v.size(), v.partStream().block(), stream_, *mem_manager_);
-    part_reduce_ = new ReducePartitioning<TypeReal, TypeInt>(v.size(), v.partReduce().block(), stream_, *mem_manager_);
+    part_stream_ = new StreamPartitioning<TypeReal, TypeInt>(v.length(), v.partStream().block(), stream_, *mem_manager_);
+    part_reduce_ = new ReducePartitioning<TypeReal, TypeInt>(v.length(), v.partReduce().block(), stream_, *mem_manager_);
   }
 
   virtual ~CudaVectorContent()
@@ -119,7 +119,7 @@ public:
     delete mem_manager_;
   }
 
-  virtual TypeInt size() const
+  virtual TypeInt length() const
   {
     return size_;
   }
@@ -152,23 +152,23 @@ public:
   virtual void stream(SUN_GPU_PREFIX(Stream_t) stream)
   {
     stream_ = stream;
-    partStream().setStream(stream);
-    partReduce().setStream(stream);
+    part_stream_->setStream(stream);
+    part_reduce_->setStream(stream);
   }
 
-  virtual bool isManaged() const
+  virtual SUNMemoryType getMemoryType() const
   {
-    return mem_manager_->GetMemoryType() == SUNMEMTYPE_UVM;
+    return mem_manager_->GetMemoryType();
   }
 
-  virtual void copyToDev()
+  virtual void copyToDevice()
   {
-    mem_manager_->CopyToDev(mem_size_, host_ptr_, device_ptr_, stream_);
+    mem_manager_->CopyToDevice(mem_size_, host_ptr_, device_ptr_, stream_);
   }
 
-  virtual void copyFromDev()
+  virtual void copyFromDevice()
   {
-    mem_manager_->CopyFromDev(mem_size_, host_ptr_, device_ptr_, stream_);
+    mem_manager_->CopyFromDevice(mem_size_, host_ptr_, device_ptr_, stream_);
   }
 
   virtual void setPartitioning(StreamPartitioning<TypeReal, TypeInt>* stream, ReducePartitioning<TypeReal, TypeInt>* reduce)

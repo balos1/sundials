@@ -253,7 +253,7 @@ public:
 
   virtual void copyFromDevBuffer(unsigned int n) const
   {
-    memManager_.CopyFromDev(bufferSize_, hostBuffer_, deviceBuffer_);
+    memManager_.CopyFromDevice(bufferSize_, hostBuffer_, deviceBuffer_);
   }
 
   static unsigned calcBufferSize(I N, unsigned block)

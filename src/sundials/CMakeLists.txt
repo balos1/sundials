@@ -40,6 +40,7 @@ set(sundials_HEADERS
   sundials_nvector.h
   sundials_types.h
   sundials_version.h
+  sundials_memory.h
   )
 
 # Add prefix with complete path to the SUNDIALS header files

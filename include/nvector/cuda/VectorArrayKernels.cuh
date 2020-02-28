@@ -382,7 +382,7 @@ inline cudaError_t linearCombination(int nvec, T* c, CudaVectorContent<T,I>** X,
       d_c,
       d_Xd,
       Z->device(),
-      Z->size()
+      Z->length()
   );
 
   // Free host array
@@ -445,7 +445,7 @@ inline cudaError_t scaleAddMulti(int nvec, T* c,CudaVectorContent<T,I>* X,
       X->device(),
       d_Yd,
       d_Zd,
-      X->size()
+      X->length()
   );
 
   // Free host array
@@ -499,7 +499,7 @@ inline cudaError_t dotProdMulti(int nvec,CudaVectorContent<T,I>* x,CudaVectorCon
       x->device(),
       d_Yd,
       d_buff,
-      x->size()
+      x->length()
   );
 
   unsigned n = grid;
@@ -603,7 +603,7 @@ inline cudaError_t linearSumVectorArray(int nvec, T a,CudaVectorContent<T,I>** X
       b,
       d_Yd,
       d_Zd,
-      Z[0]->size()
+      Z[0]->length()
   );
 
   // Free host array
@@ -669,7 +669,7 @@ inline cudaError_t scaleVectorArray(int nvec, T* c,CudaVectorContent<T,I>** X,
       d_c,
       d_Xd,
       d_Zd,
-      Z[0]->size()
+      Z[0]->length()
   );
 
   // Free host array
@@ -713,7 +713,7 @@ inline cudaError_t constVectorArray(int nvec, T c,CudaVectorContent<T,I>** Z)
       nvec,
       c,
       d_Zd,
-      Z[0]->size()
+      Z[0]->length()
   );
 
   // Free host array
@@ -772,7 +772,7 @@ inline cudaError_t wL2NormSquareVectorArray(int nvec,CudaVectorContent<T,I>** X,
       d_Xd,
       d_Wd,
       d_buff,
-      X[0]->size()
+      X[0]->length()
   );
 
   unsigned n = grid;
@@ -870,7 +870,7 @@ inline cudaError_t wL2NormSquareMaskVectorArray(int nvec,CudaVectorContent<T,I>*
       d_Wd,
       ID->device(),
       d_buff,
-      X[0]->size()
+      X[0]->length()
   );
 
   unsigned n = grid;
@@ -980,7 +980,7 @@ inline cudaError_t scaleAddMultiVectorArray(int nvec, int nsum, T* c,
       d_Xd,
       d_Yd,
       d_Zd,
-      Z[0]->size()
+      Z[0]->length()
   );
 
   // Free host array
@@ -1047,7 +1047,7 @@ inline cudaError_t linearCombinationVectorArray(int nvec, int nsum, T* c,
       d_c,
       d_Xd,
       d_Zd,
-      Z[0]->size()
+      Z[0]->length()
   );
 
   // Free host array

@@ -57,7 +57,14 @@ extern "C" {
  * to create C <--> C++ interface.
  */
 
-struct _N_VectorContent_Cuda {};
+struct _N_VectorContent_Cuda 
+{
+    sunindextype length;
+    booleantype  own_data;
+    booleantype  managed_mem;
+    realtype*    host_data;
+    realtype*    device_data;
+};
 
 typedef struct _N_VectorContent_Cuda *N_VectorContent_Cuda;
 
@@ -91,8 +98,6 @@ SUNDIALS_EXPORT realtype *N_VGetHostArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
 
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);
-
-SUNDIALS_EXPORT void N_VGiveContent_Cuda(N_Vector x, N_VectorContent_Cuda content);
 
 SUNDIALS_EXPORT void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 

@@ -346,8 +346,6 @@ int Test_N_VMakeManaged_Cuda(N_Vector X, sunindextype length, int myid)
 
   failure += check_ans(NEG_HALF, Y, length);
 
-  N_VDestroy(Y);
-
   /* Case 2: data is null */
   Y = N_VMakeManaged_Cuda(length, NULL);
   if (Y != NULL) {

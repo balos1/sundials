@@ -1,4 +1,6 @@
-/* -----------------------------------------------------------------
+
+/*
+ * -----------------------------------------------------------------
  * Programmer(s): Cody J. Balos @ LLNL
  * -----------------------------------------------------------------
  * SUNDIALS Copyright Start
@@ -11,25 +13,25 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * SUNDIALS Copyright End
  * -----------------------------------------------------------------
- * SUNDIALS memory helpers and types.
- * ----------------------------------------------------------------*/
+ * Routines needed to read a sparse matrix in Rutherford-Boeing
+ * format.
+ * ----------------------------------------------------------------- */
 
-#ifndef _SUNDIALS_MEMORY_H
-#define _SUNDIALS_MEMORY_H
+#include <stdio.h>
+#include <sundials/sundials_matrix.h>
+
+#ifndef _DREADRB_H_
+#define _DREADRB_H_
 
 #ifdef __cplusplus  /* wrapper to enable C++ usage */
 extern "C" {
 #endif
 
-typedef enum
-{
-  SUNMEMTYPE_HOST,   // memory accessible from the host
-  SUNMEMTYPE_DEVICE, // memory accessible only on the device
-  SUNMEMTYPE_UVM     // memory accessible from the host or device
-} SUNMemoryType;
+
+void dreadrb_dist(int iam, FILE *fp, SUNMatrix *Aout);
 
 
-#ifdef __cplusplus
+#ifdef __cplusplus  /* wrapper to enable C++ usage */
 }
 #endif
 

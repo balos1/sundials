@@ -22,18 +22,13 @@ set(nveccuda_SOURCES nvector_cuda.cu)
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the NVECCUDA library
 set(shared_SOURCES
-  ${sundials_SOURCE_DIR}/src/sundials/sundials_math.c
-  ${sundials_SOURCE_DIR}/src/sundials/sundials_nvector.c
-  ${sundials_SOURCE_DIR}/src/sundials/device/sundials_device_memory.cpp
+  sundials_nvector.c
+  sundials_math.c
 )
-
-# Compile sundials_device_memory.cpp as CUDA
-set_source_files_properties(
-  ${sundials_SOURCE_DIR}/src/sundials/device/sundials_device_memory.cpp
-  sundials_device_memory.cpp PROPERTIES LANGUAGE CUDA)
+add_prefix(${sundials_SOURCE_DIR}/src/sundials/ shared_SOURCES)
 
 # Add variable nveccuda_HEADERS with the exported NVECUDA header files
-set(nveccuda_HEADERS nvector_cuda.h DeviceVectorContent.hpp)
+set(nveccuda_HEADERS nvector_cuda.h)
 add_prefix(${sundials_SOURCE_DIR}/include/nvector/ nveccuda_HEADERS)
 
 # Define C preprocessor flag -DBUILD_SUNDIALS_LIBRARY
@@ -46,8 +41,7 @@ add_definitions(-DBUILD_SUNDIALS_LIBRARY)
 if(BUILD_STATIC_LIBS)
   add_library(sundials_nveccuda_static STATIC ${nveccuda_SOURCES} ${shared_SOURCES})
   target_compile_features(sundials_nveccuda_static PUBLIC cxx_std_11)
-  target_include_directories(sundials_nveccuda_static PRIVATE
-    $<BUILD_INTERFACE:${sundials_SOURCE_DIR}/src/sundials/device>)
+  target_include_directories(sundials_nveccuda_static PRIVATE ${sundials_SOURCE_DIR}/src/sundials)
   set_target_properties(sundials_nveccuda_static PROPERTIES
                         OUTPUT_NAME sundials_nveccuda
                         CLEAN_DIRECT_OUTPUT 1)
@@ -62,8 +56,7 @@ endif(BUILD_STATIC_LIBS)
 if(BUILD_SHARED_LIBS)
   add_library(sundials_nveccuda_shared SHARED ${nveccuda_SOURCES} ${shared_SOURCES})
   target_compile_features(sundials_nveccuda_shared PUBLIC cxx_std_11)
-  target_include_directories(sundials_nveccuda_shared PRIVATE
-    $<BUILD_INTERFACE:${sundials_SOURCE_DIR}/src/sundials/device>)
+  target_include_directories(sundials_nveccuda_shared PRIVATE ${sundials_SOURCE_DIR}/src/sundials)
   set_target_properties(sundials_nveccuda_shared PROPERTIES
                         OUTPUT_NAME sundials_nveccuda
                         CLEAN_DIRECT_OUTPUT 1

@@ -41,27 +41,27 @@ public:
     grid_(1),
     shMemSize_(0),
     stream_(0),
-    bufferSize_(0),
     allocfn_(nullptr),
     freefn_(nullptr),
     d_buffer_(nullptr),
     h_buffer_(nullptr),
-    ownBuffer_(true)
+    ownBuffer_(true),
+    vectorSize_(0)
   {}
 
-  ThreadPartitioning(unsigned block,
+  ThreadPartitioning(I N, unsigned block,
                      SUNAllocFn allocfn = nullptr,
                      SUNFreeFn freefn = nullptr)
   : block_(block),
     grid_(1),
     shMemSize_(0),
     stream_(0),
-    bufferSize_(0),
     allocfn_(allocfn),
     freefn_(freefn),
     d_buffer_(nullptr),
     h_buffer_(nullptr),
-    ownBuffer_(true)
+    ownBuffer_(true),
+    vectorSize_(N)
   {}
   
   explicit ThreadPartitioning(ThreadPartitioning<T, I>& p)
@@ -70,7 +70,8 @@ public:
     shMemSize_(p.shMemSize_),
     stream_(p.stream_),
     allocfn_(p.allocfn_),
-    freefn_(p.freefn_)
+    freefn_(p.freefn_),
+    vectorSize_(p.vectorSize_)
   {}
 
   virtual ~ThreadPartitioning(){}
@@ -95,9 +96,9 @@ public:
     return stream_;
   }
 
-  unsigned int bufferSize()
+  I vectorSize()
   {
-    return bufferSize_;
+    return vectorSize_;
   }
 
   T* devBuffer()
@@ -131,6 +132,12 @@ public:
               << "suncudavec::ThreadPartitioning::copyFromDevBuffer\n";
   }
 
+  virtual void resize(I N)
+  {
+    std::cerr << "Trying to copy buffer from base class in "
+              << "suncudavec::ThreadPartitioning::resize\n";
+  }
+
   /* pure virtual functions to get the relevant partitioning information */
   virtual int calcPartitioning(I N, unsigned& grid, unsigned& block, unsigned& shMemSize, cudaStream_t& stream) = 0;
   virtual int calcPartitioning(I N, unsigned& grid, unsigned& block, unsigned& shMemSize) = 0;
@@ -139,11 +146,11 @@ protected:
   unsigned block_;
   unsigned grid_;
   unsigned shMemSize_;
-  unsigned bufferSize_;
   cudaStream_t stream_;
   T* d_buffer_;
   T* h_buffer_;
   bool ownBuffer_;
+  I vectorSize_;
 
   /* custom allocators for the internal buffers */
   SUNAllocFn allocfn_;
@@ -159,17 +166,18 @@ class StreamPartitioning : public ThreadPartitioning<T, I>
   using ThreadPartitioning<T, I>::block_;
   using ThreadPartitioning<T, I>::grid_;
   using ThreadPartitioning<T, I>::stream_;
+  using ThreadPartitioning<T, I>::vectorSize_;
 
 public:
   StreamPartitioning(I N, unsigned block, cudaStream_t stream)
-  : ThreadPartitioning<T, I>(block)
+  : ThreadPartitioning<T, I>(N, block)
   {
     grid_ = (N + block_ - 1) / block_;
     stream_ = stream;
   }
   
   StreamPartitioning(I N, unsigned block)
-  : ThreadPartitioning<T, I>(block)
+  : ThreadPartitioning<T, I>(N, block)
   {
     grid_ = (N + block_ - 1) / block_;
   }
@@ -199,6 +207,13 @@ public:
     return 0;
   }
 
+  virtual void resize(I N)
+  {
+    unsigned shMemSize;
+    vectorSize_ = N;
+    calcPartitioning(N, grid_, block_, shMemSize);
+  }
+
 }; // class StreamPartitioning
 
 
@@ -209,35 +224,35 @@ class ReducePartitioning : public ThreadPartitioning<T, I>
   using ThreadPartitioning<T, I>::grid_;
   using ThreadPartitioning<T, I>::shMemSize_;
   using ThreadPartitioning<T, I>::stream_;
-  using ThreadPartitioning<T, I>::bufferSize_;
   using ThreadPartitioning<T, I>::d_buffer_;
   using ThreadPartitioning<T, I>::h_buffer_;
   using ThreadPartitioning<T, I>::ownBuffer_;
   using ThreadPartitioning<T, I>::allocfn_;
   using ThreadPartitioning<T, I>::freefn_;
+  using ThreadPartitioning<T, I>::vectorSize_;
 
 public:
-  ReducePartitioning(I N, unsigned block,
+  ReducePartitioning(I N, unsigned block, bool use_managed_memory = false,
                      SUNAllocFn allocfn = nullptr, SUNFreeFn freefn = nullptr)
-  : ThreadPartitioning<T, I>(block, allocfn, freefn)
+  : ThreadPartitioning<T, I>(N, block, allocfn, freefn), use_managed_memory_(use_managed_memory)
   {
     grid_ = (N + (block_ * 2 - 1)) / (block_ * 2);
     shMemSize_ = block_*sizeof(T);
-    allocateBuffer(false, allocfn != nullptr);
+    allocateBuffer();
   }
   
-  ReducePartitioning(I N, unsigned block, cudaStream_t stream,
+  ReducePartitioning(I N, unsigned block, cudaStream_t stream, bool use_managed_memory = false,
                      SUNAllocFn allocfn = nullptr, SUNFreeFn freefn = nullptr)
-  : ThreadPartitioning<T, I>(block, allocfn, freefn)
+  : ThreadPartitioning<T, I>(N, block, allocfn, freefn), use_managed_memory_(use_managed_memory)
   {
     grid_ = (N + (block_ * 2 - 1)) / (block_ * 2);
     shMemSize_ = block_*sizeof(T);
     stream_ = stream;
-    allocateBuffer(false, allocfn != nullptr);
+    allocateBuffer();
   }
   
-  ReducePartitioning(T *h_buffer, T *d_buffer, I N, unsigned block, cudaStream_t stream = 0)
-  : ThreadPartitioning<T, I>(block)
+  ReducePartitioning(T *h_buffer, T *d_buffer, I N, unsigned block, bool use_managed_memory = false, cudaStream_t stream = 0)
+  : ThreadPartitioning<T, I>(N, block), use_managed_memory_(use_managed_memory)
   {
     grid_ = (N + (block_ * 2 - 1)) / (block_ * 2);
     shMemSize_ = block_*sizeof(T);
@@ -248,38 +263,16 @@ public:
   }
   
   explicit ReducePartitioning(ReducePartitioning<T, I>& p)
-  : ThreadPartitioning<T, I>(p)
+  : ThreadPartitioning<T, I>(p), use_managed_memory_(p.use_managed_memory_)
   {
     shMemSize_ = p.shMemSize_;
     /* if device buffer and host buffer are the same, then assume managed memory */
-    allocateBuffer(p.d_buffer_ == p.h_buffer_, p.allocfn_ != nullptr);
+    allocateBuffer();
   }
 
   ~ReducePartitioning()
   {
-    cudaError_t err;
-
-    if (ownBuffer_ && bufferSize_ > 0) {
-
-      if (d_buffer_ == h_buffer_) {
-        /* managed memory */
-        if (freefn_) {
-          freefn_(d_buffer_);
-        } else {
-          err = cudaFree(d_buffer_);
-          SUNDIALS_CUDA_VERIFY(err);
-        }
-        d_buffer_ = h_buffer_ = nullptr;
-      } else {
-        /* unmanaged memory */
-        err = cudaFree(d_buffer_);
-        SUNDIALS_CUDA_VERIFY(err);
-        free(h_buffer_);
-        d_buffer_ = nullptr;
-        h_buffer_ = nullptr;
-      }
-
-    }
+    freeBuffer();
   }
 
   virtual int calcPartitioning(I N, unsigned& grid, unsigned& block, unsigned& shMemSize,
@@ -302,6 +295,14 @@ public:
     return 0;
   }
 
+  virtual void resize(I N)
+  {
+    vectorSize_ = N;
+    calcPartitioning(N, grid_, block_, shMemSize_);
+    freeBuffer();
+    allocateBuffer();
+  }
+
   virtual void copyFromDevBuffer(unsigned int n) const
   {
     cudaError_t err;
@@ -319,47 +320,79 @@ public:
       SUNDIALS_CUDA_VERIFY(err);
     }
   }
-
+  
   static unsigned calcBufferSize(I N, unsigned block)
   {
     return (N + (block * 2 - 1)) / (block * 2) * sizeof(T);
   }
 
 private:
-  int allocateBuffer(bool use_managed_memory = false, bool custom_allocator = false)
+  int allocateBuffer()
   {
     cudaError_t err;
-
-    bufferSize_ = grid_ * sizeof(T);
-    if (bufferSize_ == 0) return 0;
+    bool custom_allocator = allocfn_ != nullptr;
 
     if (custom_allocator) {
 
-      d_buffer_ = static_cast<T*>(allocfn_(bufferSize_));
+      d_buffer_ = static_cast<T*>(allocfn_(grid_*sizeof(T)));
       if(d_buffer_ == NULL)
         std::cerr << "Failed to allocate managed buffer with custom allocator in "
                   << "suncudavec::ReducePartitioning::allocateBuffer\n";
       h_buffer_ = d_buffer_;
 
-    } else if (use_managed_memory) {
+    } else if (use_managed_memory_) {
 
-      err = cudaMallocManaged((void**) &d_buffer_, bufferSize_);
+      err = cudaMallocManaged((void**) &d_buffer_, grid_*sizeof(T));
       SUNDIALS_CUDA_VERIFY(err);
       h_buffer_ = d_buffer_;
 
     } else {
 
-      h_buffer_ = static_cast<T*>(malloc(bufferSize_));
+      h_buffer_ = static_cast<T*>(malloc(grid_*sizeof(T)));
       if(h_buffer_ == NULL)
         std::cerr << "Failed to allocate internal host buffer in "
                   << "suncudavec::ReducePartitioning::allocateBuffer\n";
-      err = cudaMalloc((void**) &d_buffer_, bufferSize_);
+      err = cudaMalloc((void**) &d_buffer_, grid_*sizeof(T));
       SUNDIALS_CUDA_VERIFY(err);
 
     }
 
     return 0;
   }
+
+  void freeBuffer()
+  {
+    cudaError_t err;
+
+    if (ownBuffer_) {
+
+      if (d_buffer_ == h_buffer_) {
+        /* managed memory */
+        if (freefn_) {
+          if (d_buffer_ != nullptr) freefn_(d_buffer_);
+        } else {
+          if (d_buffer_ != nullptr) {
+            err = cudaFree(d_buffer_);
+            SUNDIALS_CUDA_VERIFY(err);
+          }
+        }
+        d_buffer_ = h_buffer_ = nullptr;
+      } else {
+        /* unmanaged memory */
+        if (d_buffer_ != nullptr) {
+          err = cudaFree(d_buffer_);
+          SUNDIALS_CUDA_VERIFY(err);
+        }
+        if (h_buffer_ != nullptr) free(h_buffer_);
+        d_buffer_ = nullptr;
+        h_buffer_ = nullptr;
+      }
+
+    }
+  }
+
+private:
+  bool use_managed_memory_;
 
 }; // class ReducePartitioning
 

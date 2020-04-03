@@ -60,7 +60,7 @@ public:
 
     // Set partitioning
     partStream_ = new StreamPartitioning<T, I>(N, 256);
-    partReduce_ = new ReducePartitioning<T, I>(N, 256);
+    partReduce_ = new ReducePartitioning<T, I>(N, 256, use_managed_memory);
 
     // Allocate data arrays
     if (allocate_data)
@@ -84,7 +84,7 @@ public:
 
     // Set partitioning
     partStream_ = new StreamPartitioning<T, I>(N, 256, stream);
-    partReduce_ = new ReducePartitioning<T, I>(N, 256, stream);
+    partReduce_ = new ReducePartitioning<T, I>(N, 256, stream, use_managed_memory);
 
     // Allocate data arrays
     if (allocate_data)
@@ -108,7 +108,7 @@ public:
 
     // Set partitioning
     partStream_ = new StreamPartitioning<T, I>(N, 256);
-    partReduce_ = new ReducePartitioning<T, I>(N, 256, allocfn, freefn);
+    partReduce_ = new ReducePartitioning<T, I>(N, 256, managed_mem, allocfn, freefn);
 
     // Allocate data arrays
     if (allocate_data)
@@ -132,7 +132,7 @@ public:
 
     // Set partitioning
     partStream_ = new StreamPartitioning<T, I>(N, 256, stream);
-    partReduce_ = new ReducePartitioning<T, I>(N, 256, stream, allocfn, freefn);
+    partReduce_ = new ReducePartitioning<T, I>(N, 256, stream, managed_mem, allocfn, freefn);
 
     // Allocate data arrays
     if (allocate_data)

@@ -622,6 +622,7 @@ inline cudaError_t setConst(T a, Vector<T,I>& X)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -635,6 +636,7 @@ inline cudaError_t linearSum(T a, const Vector<T,I>& X, T b, const Vector<T,I>& 
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -648,6 +650,7 @@ inline cudaError_t prod(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>&
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -661,6 +664,7 @@ inline cudaError_t div(const Vector<T,I>& X, const Vector<T,I>& Y, Vector<T,I>& 
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -674,6 +678,7 @@ inline cudaError_t scale(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -687,6 +692,7 @@ inline cudaError_t absVal(const Vector<T,I>& X, Vector<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -700,6 +706,7 @@ inline cudaError_t inv(const Vector<T,I>& X, Vector<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -713,6 +720,7 @@ inline cudaError_t addConst(T const a, const Vector<T,I>& X, Vector<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -727,6 +735,7 @@ inline cudaError_t compare(T const c, const Vector<T,I>& X, Vector<T,I>& Z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = X.partStream();
+  if (p.vectorSize() != X.size()) p.resize(X.size());
   const I grid                = p.grid();
   const unsigned block        = p.block();
   const cudaStream_t stream   = p.stream();
@@ -741,6 +750,7 @@ inline T dotProd(const Vector<T,I>& x, const Vector<T,I>& y)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -776,6 +786,7 @@ inline T maxNorm(const Vector<T,I>& x)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -812,6 +823,7 @@ inline T wL2NormSquareMask(const Vector<T,I>& x, const Vector<T,I>& w, const Vec
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -849,6 +861,7 @@ inline T findMin(const Vector<T,I>& x)
 
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -886,6 +899,7 @@ inline T wL2NormSquare(const Vector<T,I>& x, const Vector<T,I>& y)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -922,6 +936,7 @@ inline T L1Norm(const Vector<T,I>& x)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -958,6 +973,7 @@ inline T invTest(const Vector<T,I>& x, Vector<T,I>& z)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -994,6 +1010,7 @@ inline T constrMask(const Vector<T,I>& c, const Vector<T,I>& x, Vector<T,I>& m)
 {
   // Set partitioning
   ThreadPartitioning<T, I>& p = x.partReduce();
+  if (p.vectorSize() != x.size()) p.resize(x.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();
@@ -1033,6 +1050,7 @@ inline T minQuotient(const Vector<T,I>& num, const Vector<T,I>& den)
 
   // Set partitioning
   ThreadPartitioning<T, I>& p = num.partReduce();
+  if (p.vectorSize() != num.size()) p.resize(num.size());
   unsigned grid               = p.grid();
   unsigned block              = p.block();
   unsigned shMemSize          = p.shmem();

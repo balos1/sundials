@@ -380,8 +380,7 @@ sedi "/LLNL-CODE-667205/ s/.*/           v${ark_ver}. Technical Report LLNL-CODE
 
 # user guide (latex)
 fn="../doc/arkode/ARKode.tex"
-sedi "s/User Documentation for ARKode v[^(]*/User Documentation for ARKode v${ark_ver} /" $fn
-sedi "s/(SUNDIALS v.*)/(SUNDIALS v${sun_ver})/" $fn
+sedi "s/User Documentation for ARKode v.*/User Documentation for ARKode v${ark_ver} (SUNDIALS v${sun_ver})\}/" $fn
 
 # example doc (latex)
 fn="../doc/arkode/ARKode_example.tex"

@@ -20,7 +20,7 @@ Added specialized fused CUDA kernels to CVODE which may offer better
 performance on smaller problems when using CVODE with the `NVECTOR_CUDA`
 module. See the optional input function `CVodeSetUseIntegratorFusedKernels`
 for more information. As with other SUNDIALS CUDA features, this is
-feature is experimental and may change from version to verion.
+feature is experimental and may change from version to version.
 
 Added the ability to control the CUDA kernel launch parameters for the
 `NVECTOR_CUDA` and `SUNMATRIX_CUSPARSE` modules. These modules remain

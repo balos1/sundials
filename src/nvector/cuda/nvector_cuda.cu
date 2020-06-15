@@ -35,6 +35,29 @@ extern "C" {
 using namespace sundials;
 using namespace sundials::nvector_cuda;
 
+static void default_allocfn(sunindextype length, size_t size, void** h_ptr, void** d_ptr)
+{
+  SUNDIALS_CUDA_VERIFY(cudaMalloc(d_ptr, length*size));
+  *h_ptr = malloc(length*size);
+}
+
+static void default_allocmanagedfn(sunindextype length, size_t size, void** h_ptr, void** d_ptr)
+{
+  SUNDIALS_CUDA_VERIFY(cudaMallocManaged(d_ptr, length*size));
+  *h_ptr = *d_ptr;
+}
+
+static void default_freefn(sunindextype length, void* h_ptr, void* d_ptr)
+{
+  if (h_ptr) free(h_ptr);
+  if (d_ptr) cudaFree(d_ptr);
+}
+
+static void default_freemanagedfn(sunindextype length, void* h_ptr, void* d_ptr)
+{
+  if (d_ptr) cudaFree(d_ptr);
+}
+
 /*
  * Macro definitions
  */
@@ -54,8 +77,10 @@ struct _N_PrivateVectorContent_Cuda
   size_t      reduce_buffer_allocated_bytes; /* current size of the reduction buffer */
   realtype*   reduce_buffer_dev;      /* device buffer used for reductions */
   realtype*   reduce_buffer_host;     /* host buffer used for reductions */
-  void*       (*userallocfn)(size_t); /* a user provided allocator (assumes managed mem) */
-  void        (*userfreefn)(void*);   /* a user provided free function */
+  // void*       (*userallocfn)(size_t); /* a user provided allocator (assumes managed mem) */
+  // void        (*userfreefn)(void*);   /* a user provided free function */
+  void (*userallocfn)(sunindextype,size_t,void**,void**);
+  void (*userfreefn)(sunindextype,void*,void*);
   booleantype own_exec; /* indicates if the exec policy is owned by the vector */
 };
 
@@ -159,8 +184,8 @@ N_Vector N_VNewEmpty_Cuda()
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = NULL;
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -184,8 +209,8 @@ N_Vector N_VNew_Cuda(sunindextype length)
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -220,8 +245,8 @@ N_Vector N_VNewManaged_Cuda(sunindextype length)
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -240,8 +265,6 @@ N_Vector N_VMake_Cuda(sunindextype length, realtype *h_vdata, realtype *d_vdata)
 {
   N_Vector v;
 
-  // if (h_vdata == NULL || d_vdata == NULL) return(NULL);
-
   v = NULL;
   v = N_VNewEmpty_Cuda();
   if (v == NULL) return(NULL);
@@ -254,8 +277,8 @@ N_Vector N_VMake_Cuda(sunindextype length, realtype *h_vdata, realtype *d_vdata)
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -266,8 +289,6 @@ N_Vector N_VMake_Cuda(sunindextype length, realtype *h_vdata, realtype *d_vdata)
 N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
 {
   N_Vector v;
-
-  // if (vdata == NULL) return(NULL);
 
   v = NULL;
   v = N_VNewEmpty_Cuda();
@@ -285,8 +306,8 @@ N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -316,8 +337,10 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
+  // NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
+  // NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -328,6 +351,33 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
     N_VDestroy(v);
     return NULL;
   }
+
+  return(v);
+}
+
+N_Vector N_VMakeWithAllocator_Cuda(sunindextype length, realtype* h_vdata, realtype* d_vdata,
+                                   void (*allocfn)(sunindextype,size_t,void**,void**),
+                                   void (*freefn)(sunindextype,void*,void*))
+{
+  N_Vector v;
+
+  v = NULL;
+  v = N_VNewEmpty_Cuda();
+  if (v == NULL) return(NULL);
+
+  NVEC_CUDA_CONTENT(v)->length                        = length;
+  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
+  NVEC_CUDA_CONTENT(v)->host_data                     = h_vdata;
+  NVEC_CUDA_CONTENT(v)->device_data                   = d_vdata;
+  NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
+  NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
+  NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
 
   return(v);
 }
@@ -566,19 +616,23 @@ void N_VDestroy_Cuda(N_Vector v)
   /* free items in content */
   if (vc->own_data)
   {
-    if (vcp != NULL && vcp->userfreefn)
+    if (vcp != NULL)
     {
-      vcp->userfreefn(vc->device_data);
-      vc->device_data = NULL;
-      vc->host_data = NULL;
+      vcp->userfreefn(vc->length, vc->host_data, vc->device_data);
     }
-    else
-    {
-      if (vcp != NULL && !vcp->use_managed_mem) free(vc->host_data);
-      SUNDIALS_CUDA_VERIFY(cudaFree(vc->device_data));
-      vc->device_data = NULL;
-      vc->host_data = NULL;
-    }
+    // if (vcp != NULL && vcp->userfreefn)
+    // {
+    //   vcp->userfreefn(vc->device_data);
+    //   vc->device_data = NULL;
+    //   vc->host_data = NULL;
+    // }
+    // else
+    // {
+    //   if (vcp != NULL && !vcp->use_managed_mem) free(vc->host_data);
+    //   SUNDIALS_CUDA_VERIFY(cudaFree(vc->device_data));
+    //   vc->device_data = NULL;
+    //   vc->host_data = NULL;
+    // }
   }
 
   /* free execution policies */
@@ -1929,37 +1983,42 @@ int AllocateData(N_Vector v)
   N_VectorContent_Cuda vc = NVEC_CUDA_CONTENT(v);
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
 
-  if (vcp->userallocfn)
-  {
-    /* We assume managed memory when a custom allocator is provided */
-    vc->device_data =  (realtype *) vcp->userallocfn(NVEC_CUDA_MEMSIZE(v));
-    vc->host_data = vc->device_data;
-    if (vc->device_data == NULL)
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: user provided allocator function failed\n");
-      return -1;
-    }
-  }
-  else if (vcp->use_managed_mem)
-  {
-    err = cudaMallocManaged((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
-    vc->host_data = vc->device_data;
-    if (!SUNDIALS_CUDA_VERIFY(err))
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMallocManaged failed\n");
-      return -1;
-    }
-  }
-  else
-  {
-    vc->host_data = (realtype*) malloc(NVEC_CUDA_MEMSIZE(v));
-    err = cudaMalloc((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
-    if (!SUNDIALS_CUDA_VERIFY(err))
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMalloc failed\n");
-      return -1;
-    }
-  }
+  vcp->userallocfn(NVEC_CUDA_CONTENT(v)->length,
+                   sizeof(realtype),
+                   (void**) &NVEC_CUDA_CONTENT(v)->host_data,
+                   (void**) &NVEC_CUDA_CONTENT(v)->device_data);
+
+  // if (vcp->userallocfn)
+  // {
+  //   /* We assume managed memory when a custom allocator is provided */
+  //   vc->device_data =  (realtype *) vcp->userallocfn(NVEC_CUDA_MEMSIZE(v));
+  //   vc->host_data = vc->device_data;
+  //   if (vc->device_data == NULL)
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: user provided allocator function failed\n");
+  //     return -1;
+  //   }
+  // }
+  // else if (vcp->use_managed_mem)
+  // {
+  //   err = cudaMallocManaged((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
+  //   vc->host_data = vc->device_data;
+  //   if (!SUNDIALS_CUDA_VERIFY(err))
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMallocManaged failed\n");
+  //     return -1;
+  //   }
+  // }
+  // else
+  // {
+  //   vc->host_data = (realtype*) malloc(NVEC_CUDA_MEMSIZE(v));
+  //   err = cudaMalloc((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
+  //   if (!SUNDIALS_CUDA_VERIFY(err))
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMalloc failed\n");
+  //     return -1;
+  //   }
+  // }
 
   return 0;
 }
@@ -1994,41 +2053,47 @@ int InitializeReductionBuffer(N_Vector v, const realtype value)
     return 0;
   }
 
-  if (vcp->userallocfn != nullptr)
-  {
-    vcp->reduce_buffer_dev = (realtype*) vcp->userallocfn(bytes);
-    if (vcp->reduce_buffer_dev == NULL)
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with user allocator\n");
-      return -1;
-    }
-    vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
-  }
-  else if (vcp->use_managed_mem)
-  {
-    err = cudaMallocManaged((void**) &vcp->reduce_buffer_dev, bytes);
-    if (!SUNDIALS_CUDA_VERIFY(err))
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMallocManaged\n");
-      return -1;
-    }
-    vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
-  }
-  else
-  {
-    vcp->reduce_buffer_host = (realtype *) malloc(bytes);
-    if (vcp->reduce_buffer_host == NULL)
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate host data with malloc\n");
-      return -1;
-    }
-    err = cudaMalloc((void**) &vcp->reduce_buffer_dev, bytes);
-    if (!SUNDIALS_CUDA_VERIFY(err))
-    {
-      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMalloc\n");
-      return -1;
-    }
-  }
+
+  vcp->userallocfn(bytes,
+                   sizeof(realtype),
+                   (void**) &vcp->reduce_buffer_host,
+                   (void**) &vcp->reduce_buffer_dev);
+
+  // if (vcp->userallocfn != nullptr)
+  // {
+  //   vcp->reduce_buffer_dev = (realtype*) vcp->userallocfn(bytes);
+  //   if (vcp->reduce_buffer_dev == NULL)
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with user allocator\n");
+  //     return -1;
+  //   }
+  //   vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
+  // }
+  // else if (vcp->use_managed_mem)
+  // {
+  //   err = cudaMallocManaged((void**) &vcp->reduce_buffer_dev, bytes);
+  //   if (!SUNDIALS_CUDA_VERIFY(err))
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMallocManaged\n");
+  //     return -1;
+  //   }
+  //   vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
+  // }
+  // else
+  // {
+  //   vcp->reduce_buffer_host = (realtype *) malloc(bytes);
+  //   if (vcp->reduce_buffer_host == NULL)
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate host data with malloc\n");
+  //     return -1;
+  //   }
+  //   err = cudaMalloc((void**) &vcp->reduce_buffer_dev, bytes);
+  //   if (!SUNDIALS_CUDA_VERIFY(err))
+  //   {
+  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMalloc\n");
+  //     return -1;
+  //   }
+  // }
 
   vcp->reduce_buffer_allocated_bytes = bytes;
 
@@ -2052,36 +2117,43 @@ void FreeReductionBuffer(N_Vector v)
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
   if (vcp == NULL) return;
 
-  if (vcp->use_managed_mem)
+  if (vcp->reduce_buffer_host != NULL)
   {
-    /* managed memory */
-    if (vcp->userfreefn)
-    {
-      if (vcp->reduce_buffer_dev != NULL)
-        vcp->userfreefn(vcp->reduce_buffer_dev);
-    }
-    else
-    {
-      if (vcp->reduce_buffer_dev != NULL)
-      {
-        err = cudaFree(vcp->reduce_buffer_dev);
-        SUNDIALS_CUDA_VERIFY(err);
-      }
-    }
-    vcp->reduce_buffer_dev = vcp->reduce_buffer_host = NULL;
+    vcp->userfreefn(NVEC_CUDA_CONTENT(v)->length,
+                    vcp->reduce_buffer_host,
+                    vcp->reduce_buffer_dev);
   }
-  else
-  {
-    /* unmanaged memory */
-    if (vcp->reduce_buffer_dev != NULL)
-    {
-      err = cudaFree(vcp->reduce_buffer_dev);
-      SUNDIALS_CUDA_VERIFY(err);
-    }
-    if (vcp->reduce_buffer_host != NULL) free(vcp->reduce_buffer_host);
-    vcp->reduce_buffer_dev = NULL;
-    vcp->reduce_buffer_host = NULL;
-  }
+
+  // if (vcp->use_managed_mem)
+  // {
+  //   /* managed memory */
+  //   if (vcp->userfreefn)
+  //   {
+  //     if (vcp->reduce_buffer_dev != NULL)
+  //       vcp->userfreefn(vcp->reduce_buffer_dev);
+  //   }
+  //   else
+  //   {
+  //     if (vcp->reduce_buffer_dev != NULL)
+  //     {
+  //       err = cudaFree(vcp->reduce_buffer_dev);
+  //       SUNDIALS_CUDA_VERIFY(err);
+  //     }
+  //   }
+  //   vcp->reduce_buffer_dev = vcp->reduce_buffer_host = NULL;
+  // }
+  // else
+  // {
+  //   /* unmanaged memory */
+  //   if (vcp->reduce_buffer_dev != NULL)
+  //   {
+  //     err = cudaFree(vcp->reduce_buffer_dev);
+  //     SUNDIALS_CUDA_VERIFY(err);
+  //   }
+  //   if (vcp->reduce_buffer_host != NULL) free(vcp->reduce_buffer_host);
+  //   vcp->reduce_buffer_dev = NULL;
+  //   vcp->reduce_buffer_host = NULL;
+  // }
 }
 
 /* Copy the reduction buffer from the device to the host.

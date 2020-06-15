@@ -139,6 +139,9 @@ N_Vector N_VNewEmpty_Serial(sunindextype length)
   content->length   = length;
   content->own_data = SUNFALSE;
   content->data     = NULL;
+  content->ddata    = NULL;
+  content->allocfn  = malloc;
+  content->freefn   = free;
 
   return(v);
 }
@@ -193,6 +196,29 @@ N_Vector N_VMake_Serial(sunindextype length, realtype *v_data)
 
   return(v);
 }
+
+N_Vector N_VMakeWithAllocator_Serial(sunindextype length, realtype *v_data,
+  void* (*allocfn)(size_t memsize),
+  void (*freefn)(void* ptr) )
+{
+  N_Vector v;
+
+  v = NULL;
+  v = N_VNewEmpty_Serial(length);
+  if (v == NULL) return(NULL);
+
+  if (length > 0) {
+    /* Attach data */
+    NV_OWN_DATA_S(v) = SUNFALSE;
+    NV_DATA_S(v)     = v_data;
+  }
+
+  NV_ALLOCFN_S(v) = allocfn;
+  NV_FREEFN_S(v) = freefn;
+
+  return(v);
+}
+
 
 /* ----------------------------------------------------------------------------
  * Function to create an array of new serial vectors.
@@ -341,6 +367,9 @@ N_Vector N_VCloneEmpty_Serial(N_Vector w)
   content->length   = NV_LENGTH_S(w);
   content->own_data = SUNFALSE;
   content->data     = NULL;
+  content->ddata    = NULL;
+  content->allocfn  = NV_ALLOCFN_S(w);
+  content->freefn   = NV_FREEFN_S(w);
 
   return(v);
 }
@@ -362,12 +391,13 @@ N_Vector N_VClone_Serial(N_Vector w)
 
     /* Allocate memory */
     data = NULL;
-    data = (realtype *) malloc(length * sizeof(realtype));
+    data = (realtype *) NV_ALLOCFN_S(v)(length * sizeof(realtype));
     if(data == NULL) { N_VDestroy_Serial(v); return(NULL); }
 
     /* Attach data */
     NV_OWN_DATA_S(v) = SUNTRUE;
     NV_DATA_S(v)     = data;
+    NV_DDATA_S(v)    = (realtype *) NV_ALLOCFN_S(v)(length * sizeof(realtype));
 
   }
 
@@ -382,8 +412,14 @@ void N_VDestroy_Serial(N_Vector v)
   if (v->content != NULL) {
     /* free data array if it's owned by the vector */
     if (NV_OWN_DATA_S(v) && NV_DATA_S(v) != NULL) {
-      free(NV_DATA_S(v));
+      if (NV_FREEFN_S(v)) NV_FREEFN_S(v)(NV_DATA_S(v));
+      else                free(NV_DATA_S(v));
       NV_DATA_S(v) = NULL;
+    }
+    if (NV_OWN_DATA_S(v) && NV_DDATA_S(v) != NULL) {
+      if (NV_FREEFN_S(v)) NV_FREEFN_S(v)(NV_DDATA_S(v));
+      else                free(NV_DDATA_S(v));
+      NV_DDATA_S(v) = NULL;
     }
     free(v->content);
     v->content = NULL;

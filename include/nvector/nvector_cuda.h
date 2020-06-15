@@ -53,7 +53,7 @@ extern "C" {
  * -----------------------------------------------------------------
  */
 
-struct _N_VectorContent_Cuda 
+struct _N_VectorContent_Cuda
 {
     sunindextype       length;
     booleantype        own_data;
@@ -83,6 +83,10 @@ SUNDIALS_EXPORT N_Vector N_VMakeManaged_Cuda(sunindextype length,
 SUNDIALS_EXPORT N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
                                                           void* (*allocfn)(size_t),
                                                           void (*freefn)(void*));
+SUNDIALS_EXPORT N_Vector N_VMakeWithAllocator_Cuda(sunindextype length, realtype* h_vdata, realtype* d_vdata,
+                                   void (*allocfn)(sunindextype,size_t,void**,void**),
+                                   void (*freefn)(sunindextype,void*,void*));
+
 SUNDIALS_EXPORT realtype *N_VGetHostArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);
@@ -94,7 +98,7 @@ SUNDIALS_EXPORT void N_VCopyFromDevice_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VPrint_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VPrintFile_Cuda(N_Vector v, FILE *outfile);
 
- /* DEPRECATED (to be removed in SUNDIALS v6): use N_VSetKerrnelExecPolicy_Cuda instead */ 
+ /* DEPRECATED (to be removed in SUNDIALS v6): use N_VSetKerrnelExecPolicy_Cuda instead */
 SUNDIALS_DEPRECATED void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 
 

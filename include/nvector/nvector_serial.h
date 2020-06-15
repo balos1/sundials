@@ -21,8 +21,8 @@
  *     in the header file sundials_nvector.h.
  *
  *   - The definition of the type 'realtype' can be found in the
- *     header file sundials_types.h, and it may be changed (at the 
- *     configuration stage) according to the user's needs. 
+ *     header file sundials_types.h, and it may be changed (at the
+ *     configuration stage) according to the user's needs.
  *     The sundials_types.h file also contains the definition
  *     for the type 'booleantype'.
  *
@@ -55,6 +55,9 @@ struct _N_VectorContent_Serial {
   sunindextype length;   /* vector length       */
   booleantype own_data;  /* data ownership flag */
   realtype *data;        /* data array          */
+  realtype *ddata;       /* second data ptr (for mocking a device) */
+  void* (*allocfn)(size_t memsize);
+  void (*freefn)(void* ptr);
 };
 
 typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
@@ -67,6 +70,10 @@ typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
  */
 
 #define NV_CONTENT_S(v)  ( (N_VectorContent_Serial)(v->content) )
+
+#define NV_DDATA_S(v)     ( NV_CONTENT_S(v)->ddata )
+#define NV_ALLOCFN_S(v)   ( NV_CONTENT_S(v)->allocfn )
+#define NV_FREEFN_S(v)    ( NV_CONTENT_S(v)->freefn )
 
 #define NV_LENGTH_S(v)   ( NV_CONTENT_S(v)->length )
 
@@ -81,6 +88,10 @@ typedef struct _N_VectorContent_Serial *N_VectorContent_Serial;
  * Functions exported by nvector_serial
  * -----------------------------------------------------------------
  */
+
+SUNDIALS_EXPORT N_Vector N_VMakeWithAllocator_Serial(sunindextype length, realtype *v_data,
+  void* (*allocfn)(size_t memsize),
+  void (*freefn)(void* ptr) );
 
 SUNDIALS_EXPORT N_Vector N_VNew_Serial(sunindextype vec_length);
 
@@ -138,7 +149,7 @@ SUNDIALS_EXPORT int N_VDotProdMulti_Serial(int nvec, N_Vector x,
                                            N_Vector* Y, realtype* dotprods);
 
 /* vector array operations */
-SUNDIALS_EXPORT int N_VLinearSumVectorArray_Serial(int nvec, 
+SUNDIALS_EXPORT int N_VLinearSumVectorArray_Serial(int nvec,
                                                    realtype a, N_Vector* X,
                                                    realtype b, N_Vector* Y,
                                                    N_Vector* Z);
@@ -164,7 +175,7 @@ SUNDIALS_EXPORT int N_VLinearCombinationVectorArray_Serial(int nvec, int nsum,
 /* OPTIONAL local reduction kernels (no parallel communication) */
 SUNDIALS_EXPORT realtype N_VWSqrSumLocal_Serial(N_Vector x, N_Vector w);
 SUNDIALS_EXPORT realtype N_VWSqrSumMaskLocal_Serial(N_Vector x, N_Vector w, N_Vector id);
-  
+
 /*
  * -----------------------------------------------------------------
  * Enable / disable fused vector operations

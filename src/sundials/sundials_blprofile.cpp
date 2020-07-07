@@ -12,25 +12,32 @@
  * SUNDIALS Copyright End
  * -----------------------------------------------------------------*/
 
-#include <string>
 #include "sundials_blprofile.h"
+#include "nvToolsExt.h"
 
-namespace amrex
+class NvtxProfiler
 {
-  class BLProfiler
+public:
+  explicit NvtxProfiler(const char* funcname)
   {
-  public:
-    explicit BLProfiler(const std::string &funcname);
-     ~BLProfiler();
-  };
-}
+    r = nvtxRangeStartA(funcname);
+  }
 
-SUNProfiler newSUNProfiler(char* fname)
+  ~NvtxProfiler()
+  {
+    nvtxRangeEnd(r);
+  }
+
+private:
+  nvtxRangeId_t r;
+};
+
+SUNProfiler newSUNProfiler(const char* fname)
 {
-  return reinterpret_cast<void*>(new amrex::BLProfiler(fname));
+  return reinterpret_cast<void*>(new NvtxProfiler(fname));
 }
 
 void deleteSUNProfiler(SUNProfiler bl)
 {
-  delete reinterpret_cast<amrex::BLProfiler*>(bl);
+  delete reinterpret_cast<NvtxProfiler*>(bl);
 }

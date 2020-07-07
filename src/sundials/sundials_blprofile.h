@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 typedef void* SUNProfiler;
-SUNProfiler newSUNProfiler(char* fname);
+SUNProfiler newSUNProfiler(const char* fname);
 void deleteSUNProfiler(SUNProfiler bl);
 
 #ifdef USE_BL_PROFILE

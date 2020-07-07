@@ -15,6 +15,8 @@
  * This is the implementation file for the main CVODE integrator.
  * -----------------------------------------------------------------*/
 
+#include "sundials_blprofile.h"
+
 /*=================================================================*/
 /* Import Header Files                                             */
 /*=================================================================*/
@@ -1466,6 +1468,8 @@ int CVode(void *cvode_mem, realtype tout, N_Vector yout,
 
 int CVodeGetDky(void *cvode_mem, realtype t, int k, N_Vector dky)
 {
+  SUN_BL_PROFILE_BEGIN("CVodeGetDky");
+
   realtype s, r;
   realtype tfuzz, tp, tn1;
   int i, j, nvec, ier;
@@ -1520,6 +1524,8 @@ int CVodeGetDky(void *cvode_mem, realtype t, int k, N_Vector dky)
   if (k == 0) return(CV_SUCCESS);
   r = SUNRpowerI(cv_mem->cv_h, -k);
   N_VScale(r, dky, dky);
+
+  SUN_BL_PROFILE_END("CVodeGetDky");
   return(CV_SUCCESS);
 }
 
@@ -1882,6 +1888,8 @@ static int cvInitialSetup(CVodeMem cv_mem)
 
 static int cvHin(CVodeMem cv_mem, realtype tout)
 {
+  SUN_BL_PROFILE_BEGIN("cvHin");
+
   int retval, sign, count1, count2;
   realtype tdiff, tdist, tround, hlb, hub;
   realtype hg, hgs, hs, hnew, hrat, h0, yddnrm;
@@ -1979,6 +1987,7 @@ static int cvHin(CVodeMem cv_mem, realtype tout)
   if (sign == -1) h0 = -h0;
   cv_mem->cv_h = h0;
 
+  SUN_BL_PROFILE_END("cvHin");
   return(CV_SUCCESS);
 }
 
@@ -2382,6 +2391,8 @@ static void cvDecreaseBDF(CVodeMem cv_mem)
 
 void cvRescale(CVodeMem cv_mem)
 {
+  SUN_BL_PROFILE_BEGIN("cvRescale");
+
   int j;
 
   /* compute scaling factors */
@@ -2396,6 +2407,8 @@ void cvRescale(CVodeMem cv_mem)
   cv_mem->cv_next_h = cv_mem->cv_h;
   cv_mem->cv_hscale = cv_mem->cv_h;
   cv_mem->cv_nscon = 0;
+
+  SUN_BL_PROFILE_END("cvRescale");
 }
 
 /*
@@ -2410,6 +2423,8 @@ void cvRescale(CVodeMem cv_mem)
 
 static void cvPredict(CVodeMem cv_mem)
 {
+  SUN_BL_PROFILE_BEGIN("cvPredict");
+
   int j, k;
 
   cv_mem->cv_tn += cv_mem->cv_h;
@@ -2422,6 +2437,8 @@ static void cvPredict(CVodeMem cv_mem)
     for (j = cv_mem->cv_q; j >= k; j--)
       N_VLinearSum(ONE, cv_mem->cv_zn[j-1], ONE,
                    cv_mem->cv_zn[j], cv_mem->cv_zn[j-1]);
+
+  SUN_BL_PROFILE_END("cvPredict");
 }
 
 /*
@@ -2444,6 +2461,7 @@ static void cvPredict(CVodeMem cv_mem)
 
 static void cvSet(CVodeMem cv_mem)
 {
+  SUN_BL_PROFILE_BEGIN("cvSet");
   switch(cv_mem->cv_lmm) {
   case CV_ADAMS:
     cvSetAdams(cv_mem);
@@ -2457,6 +2475,7 @@ static void cvSet(CVodeMem cv_mem)
   if (cv_mem->cv_nst == 0) cv_mem->cv_gammap = cv_mem->cv_gamma;
   cv_mem->cv_gamrat = (cv_mem->cv_nst > 0) ?
     cv_mem->cv_gamma / cv_mem->cv_gammap : ONE;  /* protect x / x != 1.0 */
+  SUN_BL_PROFILE_END("cvSet");
 }
 
 /*
@@ -2964,6 +2983,8 @@ void cvRestore(CVodeMem cv_mem, realtype saved_t)
 static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
                          int *nefPtr, realtype *dsmPtr)
 {
+  SUN_BL_PROFILE_BEGIN("cvDoErrorTest");
+
   realtype dsm;
   int retval;
 
@@ -3025,6 +3046,7 @@ static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
 
   N_VScale(cv_mem->cv_h, cv_mem->cv_tempv, cv_mem->cv_zn[1]);
 
+  SUN_BL_PROFILE_END("cvDoErrorTest");
   return(TRY_AGAIN);
 }
 
@@ -3048,6 +3070,8 @@ static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
 
 static void cvCompleteStep(CVodeMem cv_mem)
 {
+  SUN_BL_PROFILE_BEGIN("cvCompleteStep");
+
   int i;
 
   cv_mem->cv_nst++;
@@ -3085,6 +3109,8 @@ static void cvCompleteStep(CVodeMem cv_mem)
     cv_mem->cv_monitorfun((void*) cv_mem, cv_mem->cv_user_data);
   }
 #endif
+
+  SUN_BL_PROFILE_END("cvCompleteStep");
 }
 
 /*
@@ -3098,6 +3124,8 @@ static void cvCompleteStep(CVodeMem cv_mem)
 
 static void cvPrepareNextStep(CVodeMem cv_mem, realtype dsm)
 {
+  SUN_BL_PROFILE_BEGIN("cvPrepareNextStep");
+
   /* If etamax = 1, defer step size or order changes */
   if (cv_mem->cv_etamax == ONE) {
     cv_mem->cv_qwait = SUNMAX(cv_mem->cv_qwait, 2);
@@ -3126,6 +3154,8 @@ static void cvPrepareNextStep(CVodeMem cv_mem, realtype dsm)
   cv_mem->cv_etaqp1 = cvComputeEtaqp1(cv_mem);
   cvChooseEta(cv_mem);
   cvSetEta(cv_mem);
+
+  SUN_BL_PROFILE_END("cvPrepareNextStep");
 }
 
 /*
@@ -4234,6 +4264,8 @@ int cvEwtSet(N_Vector ycur, N_Vector weight, void *data)
 
 static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 {
+  SUN_BL_PROFILE_BEGIN("cvEwtSetSS");
+
 #ifdef SUNDIALS_BUILD_PACKAGE_FUSED_KERNELS
   if (cv_mem->cv_usefused)
   {
@@ -4258,6 +4290,7 @@ static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
     N_VInv(cv_mem->cv_tempv, weight);
   }
 
+  SUN_BL_PROFILE_END("cvEwtSetSS");
   return(0);
 }
 
@@ -4273,6 +4306,8 @@ static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 
 static int cvEwtSetSV(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 {
+  SUN_BL_PROFILE_BEGIN("cvEwtSetSV");
+
 #ifdef SUNDIALS_BUILD_PACKAGE_FUSED_KERNELS
   if (cv_mem->cv_usefused)
   {
@@ -4297,6 +4332,7 @@ static int cvEwtSetSV(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
     N_VInv(cv_mem->cv_tempv, weight);
   }
 
+  SUN_BL_PROFILE_END("cvEwtSetSV");
   return(0);
 }
 

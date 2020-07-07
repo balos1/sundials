@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <sundials/sundials_linearsolver.h>
 
+#include "sundials_blprofile.h"
+
 /* -----------------------------------------------------------------
  * Create a new empty SUNLinearSolver object
  * ----------------------------------------------------------------- */
@@ -135,16 +137,24 @@ int SUNLinSolInitialize(SUNLinearSolver S)
 
 int SUNLinSolSetup(SUNLinearSolver S, SUNMatrix A)
 {
+  int retval;
+  SUN_BL_PROFILE_BEGIN("SUNLinSolSetup");
   if (S->ops->setup)
-    return ((int) S->ops->setup(S, A));
+    retval = (int) S->ops->setup(S, A);
   else
-    return SUNLS_SUCCESS;
+    retval = SUNLS_SUCCESS;
+  SUN_BL_PROFILE_END("SUNLinSolSetup");
+  return retval;
 }
 
 int SUNLinSolSolve(SUNLinearSolver S, SUNMatrix A, N_Vector x,
                    N_Vector b, realtype tol)
 {
-  return ((int) S->ops->solve(S, A, x, b, tol));
+  int retval;
+  SUN_BL_PROFILE_BEGIN("SUNLinSolSolve");
+  retval = (int) S->ops->solve(S, A, x, b, tol);
+  SUN_BL_PROFILE_END("SUNLinSolSolve");
+  return retval;
 }
 
 int SUNLinSolNumIters(SUNLinearSolver S)

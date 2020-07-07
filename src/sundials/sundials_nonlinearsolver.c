@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <sundials/sundials_nonlinearsolver.h>
 
+#include "sundials_blprofile.h"
+
 /* -----------------------------------------------------------------------------
  * Create a new empty SUNLinearSolver object
  * ---------------------------------------------------------------------------*/
@@ -107,7 +109,11 @@ int SUNNonlinSolSolve(SUNNonlinearSolver NLS,
                       N_Vector w, realtype tol,
                       booleantype callLSetup, void* mem)
 {
-  return((int) NLS->ops->solve(NLS, y0, y, w, tol, callLSetup, mem));
+  int retval;
+  SUN_BL_PROFILE_BEGIN("SUNNonlinSolSolve");
+  retval = (int) NLS->ops->solve(NLS, y0, y, w, tol, callLSetup, mem);
+  SUN_BL_PROFILE_END("SUNNonlinSolSolve");
+  return retval;
 }
 
 int SUNNonlinSolFree(SUNNonlinearSolver NLS)

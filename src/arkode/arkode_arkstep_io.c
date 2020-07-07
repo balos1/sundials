@@ -38,7 +38,12 @@
   utility routines).  All are documented in arkode_io.c.
   ===============================================================*/
 int ARKStepSetDenseOrder(void *arkode_mem, int dord) {
-  return(arkSetDenseOrder(arkode_mem, dord)); }
+  return(ARKStepSetInterpolantDegree(arkode_mem, dord)); }
+int ARKStepSetInterpolantDegree(void *arkode_mem, int degree) {
+  if (degree < 0) degree = ARK_INTERP_MAX_DEGREE;
+  return(arkSetInterpolantDegree(arkode_mem, degree)); }
+int ARKStepSetInterpolantType(void *arkode_mem, int itype) {
+  return(arkSetInterpolantType(arkode_mem, itype)); }
 int ARKStepSetErrHandlerFn(void *arkode_mem, ARKErrHandlerFn ehfun,
                            void *eh_data) {
   return(arkSetErrHandlerFn(arkode_mem, ehfun, eh_data)); }
@@ -67,8 +72,11 @@ int ARKStepSetConstraints(void *arkode_mem, N_Vector constraints) {
 int ARKStepSetMaxNumConstrFails(void *arkode_mem, int maxfails) {
   return(arkSetMaxNumConstrFails(arkode_mem, maxfails)); }
 int ARKStepSetPostprocessStepFn(void *arkode_mem,
-                                ARKPostProcessStepFn ProcessStep) {
+                                ARKPostProcessFn ProcessStep) {
   return(arkSetPostprocessStepFn(arkode_mem, ProcessStep)); }
+int ARKStepSetPostprocessStageFn(void *arkode_mem,
+                                 ARKPostProcessFn ProcessStage) {
+  return(arkSetPostprocessStageFn(arkode_mem, ProcessStage)); }
 int ARKStepSetCFLFraction(void *arkode_mem, realtype cfl_frac) {
   return(arkSetCFLFraction(arkode_mem, cfl_frac)); }
 int ARKStepSetSafetyFactor(void *arkode_mem, realtype safety) {
@@ -77,6 +85,8 @@ int ARKStepSetErrorBias(void *arkode_mem, realtype bias) {
   return(arkSetErrorBias(arkode_mem, bias)); }
 int ARKStepSetMaxGrowth(void *arkode_mem, realtype mx_growth) {
   return(arkSetMaxGrowth(arkode_mem, mx_growth)); }
+int ARKStepSetMinReduction(void *arkode_mem, realtype eta_min) {
+  return(arkSetMinReduction(arkode_mem, eta_min)); }
 int ARKStepSetFixedStepBounds(void *arkode_mem, realtype lb, realtype ub) {
   return(arkSetFixedStepBounds(arkode_mem, lb, ub)); }
 int ARKStepSetAdaptivityMethod(void *arkode_mem, int imethod, int idefault,
@@ -185,6 +195,8 @@ int ARKStepSetMassFn(void *arkode_mem, ARKLsMassFn mass) {
   return(arkLSSetMassFn(arkode_mem, mass)); }
 int ARKStepSetMaxStepsBetweenJac(void *arkode_mem, long int msbj) {
   return(arkLSSetMaxStepsBetweenJac(arkode_mem, msbj)); }
+int ARKStepSetLinearSolutionScaling(void *arkode_mem, booleantype onoff) {
+  return(arkLSSetLinearSolutionScaling(arkode_mem, onoff)); }
 int ARKStepSetEpsLin(void *arkode_mem, realtype eplifac) {
   return(arkLSSetEpsLin(arkode_mem, eplifac)); }
 int ARKStepSetMassEpsLin(void *arkode_mem, realtype eplifac) {
@@ -198,6 +210,8 @@ int ARKStepSetMassPreconditioner(void *arkode_mem, ARKLsMassPrecSetupFn psetup,
 int ARKStepSetJacTimes(void *arkode_mem, ARKLsJacTimesSetupFn jtsetup,
                        ARKLsJacTimesVecFn jtimes) {
   return(arkLSSetJacTimes(arkode_mem, jtsetup, jtimes)); }
+int ARKStepSetJacTimesRhsFn(void *arkode_mem, ARKRhsFn jtimesRhsFn) {
+  return(arkLSSetJacTimesRhsFn(arkode_mem, jtimesRhsFn)); }
 int ARKStepSetMassTimes(void *arkode_mem, ARKLsMassTimesSetupFn msetup,
                         ARKLsMassTimesVecFn mtimes, void *mtimes_data) {
   return(arkLSSetMassTimes(arkode_mem, msetup, mtimes, mtimes_data)); }
@@ -209,6 +223,8 @@ int ARKStepSetLinSysFn(void *arkode_mem, ARKLsLinSysFn linsys) {
   ARKStep Optional output functions (wrappers for generic ARKode
   utility routines).  All are documented in arkode_io.c.
   ===============================================================*/
+int ARKStepGetNumStepAttempts(void *arkode_mem, long int *nstep_attempts) {
+  return(arkGetNumStepAttempts(arkode_mem, nstep_attempts)); }
 int ARKStepGetNumSteps(void *arkode_mem, long int *nsteps) {
   return(arkGetNumSteps(arkode_mem, nsteps)); }
 int ARKStepGetActualInitStep(void *arkode_mem, realtype *hinused) {
@@ -546,6 +562,7 @@ int ARKStepSetOrder(void *arkode_mem, int ord)
 {
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
+  sunindextype Blrw, Bliw;
   int retval;
 
   /* access ARKodeARKStepMem structure */
@@ -565,8 +582,18 @@ int ARKStepSetOrder(void *arkode_mem, int ord)
   step_mem->stages = 0;
   step_mem->istage = 0;
   step_mem->p = 0;
-  ARKodeButcherTable_Free(step_mem->Be);  step_mem->Be = NULL;
-  ARKodeButcherTable_Free(step_mem->Bi);  step_mem->Bi = NULL;
+
+  ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Be);
+  step_mem->Be = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
+
+  ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Bi);
+  step_mem->Bi = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
 
   return(ARK_SUCCESS);
 }
@@ -770,6 +797,7 @@ int ARKStepSetTables(void *arkode_mem, int q, int p,
   int retval;
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
+  sunindextype Blrw, Bliw;
 
   /* access ARKodeARKStepMem structure */
   retval = arkStep_AccessStepMem(arkode_mem, "ARKStepSetTables",
@@ -798,8 +826,18 @@ int ARKStepSetTables(void *arkode_mem, int q, int p,
   step_mem->stages = 0;
   step_mem->q = 0;
   step_mem->p = 0;
-  ARKodeButcherTable_Free(step_mem->Be);  step_mem->Be = NULL;
-  ARKodeButcherTable_Free(step_mem->Bi);  step_mem->Bi = NULL;
+
+  ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Be);
+  step_mem->Be = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
+
+  ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Bi);
+  step_mem->Bi = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
 
   /*
    * determine mode (implicit/explicit/ImEx), and perform appropriate actions
@@ -889,6 +927,15 @@ int ARKStepSetTables(void *arkode_mem, int q, int p,
     }
   }
 
+  /* note Butcher table space requirements */
+  ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
+
+  ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
+
   return(ARK_SUCCESS);
 }
 
@@ -910,6 +957,7 @@ int ARKStepSetTableNum(void *arkode_mem, int itable, int etable)
   int flag, retval;
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
+  sunindextype Blrw, Bliw;
 
   /* access ARKodeARKStepMem structure */
   retval = arkStep_AccessStepMem(arkode_mem, "ARKStepSetTableNum",
@@ -920,9 +968,18 @@ int ARKStepSetTableNum(void *arkode_mem, int itable, int etable)
   step_mem->stages = 0;
   step_mem->q = 0;
   step_mem->p = 0;
-  ARKodeButcherTable_Free(step_mem->Be);  step_mem->Be = NULL;
-  ARKodeButcherTable_Free(step_mem->Bi);  step_mem->Bi = NULL;
 
+  ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Be);
+  step_mem->Be = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
+
+  ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->Bi);
+  step_mem->Bi = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
 
   /* determine mode (implicit/explicit/ImEx), and perform
      appropriate actions  */
@@ -1293,29 +1350,6 @@ int ARKStepGetCurrentGamma(void *arkode_mem, realtype *gamma)
 
 
 /*---------------------------------------------------------------
-  ARKStepGetNumStepAttempts:
-
-  Returns the current number of steps attempted by the solver
-  ---------------------------------------------------------------*/
-int ARKStepGetNumStepAttempts(void *arkode_mem, long int *nsteps)
-{
-  ARKodeMem ark_mem;
-  ARKodeARKStepMem step_mem;
-  int retval;
-
-  /* access ARKodeARKStepMem structure */
-  retval = arkStep_AccessStepMem(arkode_mem, "ARKStepGetNumStepAttempts",
-                                 &ark_mem, &step_mem);
-  if (retval != ARK_SUCCESS)  return(retval);
-
-  /* get value from step_mem */
-  *nsteps = step_mem->nst_attempts;
-
-  return(ARK_SUCCESS);
-}
-
-
-/*---------------------------------------------------------------
   ARKStepGetNumRhsEvals:
 
   Returns the current number of calls to fe and fi
@@ -1437,8 +1471,8 @@ int ARKStepGetTimestepperStats(void *arkode_mem, long int *expsteps,
   *expsteps = ark_mem->hadapt_mem->nst_exp;
   *accsteps = ark_mem->hadapt_mem->nst_acc;
 
-  /* set remaining outputs from step_mem */
-  *step_attempts = step_mem->nst_attempts;
+  /* set remaining outputs */
+  *step_attempts = ark_mem->nst_attempts;
   *fe_evals      = step_mem->nfe;
   *fi_evals      = step_mem->nfi;
   *nlinsetups    = step_mem->nsetups;
@@ -1464,19 +1498,7 @@ int ARKStepGetNumNonlinSolvIters(void *arkode_mem, long int *nniters)
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS)  return(retval);
 
-  /* if a NLS object is present, set output from that; otherwise
-     we took zero iterations */
-  if (step_mem->NLS) {
-    retval = SUNNonlinSolGetNumIters(step_mem->NLS, nniters);
-    if (retval != SUN_NLS_SUCCESS) {
-      arkProcessError(ark_mem, ARK_NLS_OP_ERR, "ARKode::ARKStep",
-                      "ARKStepGetNumNonlinSolvIters",
-                      "Error retrieving nniters from SUNNonlinearSolver");
-      return(ARK_NLS_OP_ERR);
-    }
-  } else {
-    *nniters = 0;
-  }
+  *nniters = step_mem->nls_iters;
 
   return(ARK_SUCCESS);
 }
@@ -1522,21 +1544,8 @@ int ARKStepGetNonlinSolvStats(void *arkode_mem, long int *nniters,
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS)  return(retval);
 
-  /* set outputs from NLS module and step_mem structure (if present);
-     otherwise there were zero iterations and no nonlinear failures */
-  if (step_mem->NLS) {
-    retval = SUNNonlinSolGetNumIters(step_mem->NLS, nniters);
-    if (retval != SUN_NLS_SUCCESS) {
-      arkProcessError(ark_mem, ARK_NLS_OP_ERR, "ARKode::ARKStep",
-                      "ARKStepGetNonlinSolvStats",
-                      "Error retrieving nniters from SUNNonlinearSolver");
-      return(ARK_NLS_OP_ERR);
-    }
-    *nncfails = ark_mem->ncfn;
-  } else {
-    *nniters = 0;
-    *nncfails = 0;
-  }
+  *nniters  = step_mem->nls_iters;
+  *nncfails = ark_mem->ncfn;
 
   return(ARK_SUCCESS);
 }

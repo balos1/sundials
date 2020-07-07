@@ -34,7 +34,12 @@
   utility routines).  All are documented in arkode_io.c.
   ===============================================================*/
 int MRIStepSetDenseOrder(void *arkode_mem, int dord) {
-  return(arkSetDenseOrder(arkode_mem, dord)); }
+  return(MRIStepSetInterpolantDegree(arkode_mem, dord)); }
+int MRIStepSetInterpolantDegree(void *arkode_mem, int degree) {
+  if (degree < 0) degree = ARK_INTERP_MAX_DEGREE;
+  return(arkSetInterpolantDegree(arkode_mem, degree)); }
+int MRIStepSetInterpolantType(void *arkode_mem, int itype) {
+  return(arkSetInterpolantType(arkode_mem, itype)); }
 int MRIStepSetErrHandlerFn(void *arkode_mem, ARKErrHandlerFn ehfun,
                            void *eh_data) {
   return(arkSetErrHandlerFn(arkode_mem, ehfun, eh_data)); }
@@ -53,8 +58,11 @@ int MRIStepSetRootDirection(void *arkode_mem, int *rootdir) {
 int MRIStepSetNoInactiveRootWarn(void *arkode_mem) {
   return(arkSetNoInactiveRootWarn(arkode_mem)); }
 int MRIStepSetPostprocessStepFn(void *arkode_mem,
-                                ARKPostProcessStepFn ProcessStep) {
+                                ARKPostProcessFn ProcessStep) {
   return(arkSetPostprocessStepFn(arkode_mem, ProcessStep)); }
+int MRIStepSetPostprocessStageFn(void *arkode_mem,
+                                 ARKPostProcessFn ProcessStage) {
+  return(arkSetPostprocessStageFn(arkode_mem, ProcessStage)); }
 
 
 /*===============================================================
@@ -166,6 +174,7 @@ int MRIStepSetTable(void *arkode_mem, int q, ARKodeButcherTable B)
   int retval;
   ARKodeMem ark_mem;
   ARKodeMRIStepMem step_mem;
+  sunindextype Blrw, Bliw;
 
   /* access ARKodeMRIStepMem structure */
   retval = mriStep_AccessStepMem(arkode_mem, "MRIStepSetTable",
@@ -183,8 +192,12 @@ int MRIStepSetTable(void *arkode_mem, int q, ARKodeButcherTable B)
   step_mem->stages = 0;
   step_mem->q = 0;
   step_mem->p = 0;
+
+  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
   ARKodeButcherTable_Free(step_mem->B);
   step_mem->B = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
 
   /* set the relevant parameters */
   step_mem->stages = B->stages;
@@ -198,6 +211,10 @@ int MRIStepSetTable(void *arkode_mem, int q, ARKodeButcherTable B)
                     "MRIStepSetTables", MSG_ARK_NO_MEM);
     return(ARK_MEM_NULL);
   }
+
+  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
 
   return(ARK_SUCCESS);
 }
@@ -214,6 +231,7 @@ int MRIStepSetTableNum(void *arkode_mem, int itable)
 {
   ARKodeMem ark_mem;
   ARKodeMRIStepMem step_mem;
+  sunindextype Blrw, Bliw;
   int retval;
 
   /* access ARKodeMRIStepMem structure */
@@ -233,7 +251,12 @@ int MRIStepSetTableNum(void *arkode_mem, int itable)
   step_mem->stages = 0;
   step_mem->q = 0;
   step_mem->p = 0;
-  ARKodeButcherTable_Free(step_mem->B);  step_mem->B = NULL;
+
+  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
+  ARKodeButcherTable_Free(step_mem->B);
+  step_mem->B = NULL;
+  ark_mem->liw -= Bliw;
+  ark_mem->lrw -= Blrw;
 
   /* fill in table based on argument */
   step_mem->B = ARKodeButcherTable_LoadERK(itable);
@@ -246,6 +269,10 @@ int MRIStepSetTableNum(void *arkode_mem, int itable)
   step_mem->stages = step_mem->B->stages;
   step_mem->q = step_mem->B->q;
   step_mem->p = step_mem->B->p;
+
+  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
 
   return(ARK_SUCCESS);
 }

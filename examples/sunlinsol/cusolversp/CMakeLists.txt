@@ -36,12 +36,14 @@ include_directories(. ..)
 # generate them) based on the value of the variable LINK_LIBRARY_TYPE
 if(LINK_LIBRARY_TYPE MATCHES "static")
   set(SUNDIALS_LIBS sundials_nveccuda_static
+                    sundials_nvecserial_static
                     sundials_sunmatrixdense_static
                     sundials_sunmatrixsparse_static
                     sundials_sunlinsolcusolversp_static
                     ${EXTRA_LINK_LIBS})
 else()
   set(SUNDIALS_LIBS sundials_nveccuda_shared
+                    sundials_nvecserial_shared
                     sundials_sunmatrixdense_shared
                     sundials_sunmatrixsparse_shared
                     sundials_sunlinsolcusolversp_shared
@@ -122,8 +124,8 @@ if(EXAMPLES_INSTALL)
 
   # Prepare substitution variables for Makefile and/or CMakeLists templates
   set(SOLVER_LIB "")
-  set(NVECTOR_LIB "sundials_nveccuda")
-  set(SUNMAT_LIB "sundials_sunmatrixdense sundials_sunmatrixsparse")
+  set(NVECTOR_LIB "sundials_nvecserial sundials_nveccuda")
+  set(SUNMAT_LIB "sundials_sunmatrixdense sundials_sunmatrixsparse sundials_sunmatrixcusparse")
   set(SUNLS_LIB "sundials_sunlinsolcusolversp")
 
   examples2string(sunlinsol_cusolversp_examples EXAMPLES_CUSOLVER)

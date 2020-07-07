@@ -42,6 +42,10 @@ extern "C" {
   ------------------------------------------------------------------*/
 typedef struct KINLsMemRec {
 
+  /* Linear solver type information */
+  booleantype iterative;    /* is the solver iterative?    */
+  booleantype matrixbased;  /* is a matrix structure used? */
+
   /* Jacobian construction & storage */
   booleantype jacDQ;   /* SUNTRUE if using internal DQ Jacobian approx. */
   KINLsJacFn jac;      /* Jacobian routine to be called                 */
@@ -92,6 +96,7 @@ typedef struct KINLsMemRec {
          - jtimesDQ == SUNTRUE */
   booleantype jtimesDQ;
   KINLsJacTimesVecFn jtimes;
+  KINSysFn jt_func;
   void *jt_data;
 
 } *KINLsMem;

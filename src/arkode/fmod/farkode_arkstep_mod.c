@@ -293,6 +293,22 @@ SWIGEXPORT int _wrap_FARKStepReInit(void *farg1, ARKRhsFn farg2, ARKRhsFn farg3,
 }
 
 
+SWIGEXPORT int _wrap_FARKStepReset(void *farg1, double const *farg2, N_Vector farg3) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  realtype arg2 ;
+  N_Vector arg3 = (N_Vector) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (realtype)(*farg2);
+  arg3 = (N_Vector)(farg3);
+  result = (int)ARKStepReset(arg1,arg2,arg3);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
 SWIGEXPORT int _wrap_FARKStepSStolerances(void *farg1, double const *farg2, double const *farg3) {
   int fresult ;
   void *arg1 = (void *) 0 ;
@@ -464,6 +480,34 @@ SWIGEXPORT int _wrap_FARKStepSetOrder(void *farg1, int const *farg2) {
   arg1 = (void *)(farg1);
   arg2 = (int)(*farg2);
   result = (int)ARKStepSetOrder(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetInterpolantType(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)ARKStepSetInterpolantType(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetInterpolantDegree(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)ARKStepSetInterpolantDegree(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -646,6 +690,20 @@ SWIGEXPORT int _wrap_FARKStepSetMaxGrowth(void *farg1, double const *farg2) {
   arg1 = (void *)(farg1);
   arg2 = (realtype)(*farg2);
   result = (int)ARKStepSetMaxGrowth(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetMinReduction(void *farg1, double const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  realtype arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (realtype)(*farg2);
+  result = (int)ARKStepSetMinReduction(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -1111,15 +1169,29 @@ SWIGEXPORT int _wrap_FARKStepSetDiagnostics(void *farg1, void *farg2) {
 }
 
 
-SWIGEXPORT int _wrap_FARKStepSetPostprocessStepFn(void *farg1, ARKPostProcessStepFn farg2) {
+SWIGEXPORT int _wrap_FARKStepSetPostprocessStepFn(void *farg1, ARKPostProcessFn farg2) {
   int fresult ;
   void *arg1 = (void *) 0 ;
-  ARKPostProcessStepFn arg2 = (ARKPostProcessStepFn) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
   int result;
   
   arg1 = (void *)(farg1);
-  arg2 = (ARKPostProcessStepFn)(farg2);
+  arg2 = (ARKPostProcessFn)(farg2);
   result = (int)ARKStepSetPostprocessStepFn(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetPostprocessStageFn(void *farg1, ARKPostProcessFn farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (ARKPostProcessFn)(farg2);
+  result = (int)ARKStepSetPostprocessStageFn(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -1176,6 +1248,20 @@ SWIGEXPORT int _wrap_FARKStepSetMaxStepsBetweenJac(void *farg1, long const *farg
   arg1 = (void *)(farg1);
   arg2 = (long)(*farg2);
   result = (int)ARKStepSetMaxStepsBetweenJac(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetLinearSolutionScaling(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)ARKStepSetLinearSolutionScaling(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -1252,6 +1338,20 @@ SWIGEXPORT int _wrap_FARKStepSetJacTimes(void *farg1, ARKLsJacTimesSetupFn farg2
   arg2 = (ARKLsJacTimesSetupFn)(farg2);
   arg3 = (ARKLsJacTimesVecFn)(farg3);
   result = (int)ARKStepSetJacTimes(arg1,arg2,arg3);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FARKStepSetJacTimesRhsFn(void *farg1, ARKRhsFn farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  ARKRhsFn arg2 = (ARKRhsFn) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (ARKRhsFn)(farg2);
+  result = (int)ARKStepSetJacTimesRhsFn(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }

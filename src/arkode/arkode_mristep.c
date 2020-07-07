@@ -21,6 +21,7 @@
 
 #include "arkode_impl.h"
 #include "arkode_mristep_impl.h"
+#include "arkode_interp_impl.h"
 #include <sundials/sundials_math.h>
 
 #if defined(SUNDIALS_EXTENDED_PRECISION)
@@ -29,16 +30,9 @@
 #define RSYM ".16g"
 #endif
 
-#define NO_DEBUG_OUTPUT
-/* #define DEBUG_OUTPUT */
-#ifdef DEBUG_OUTPUT
-#include <nvector/nvector_serial.h>
-#endif
-
 /* constants */
 #define ZERO   RCONST(0.0)
 #define ONE    RCONST(1.0)
-
 
 
 /*===============================================================
@@ -119,17 +113,23 @@ int MRIStepResize(void *arkode_mem, N_Vector y0, realtype t0,
   /* Resize the inner forcing vector */
   if (step_mem->inner_forcing != NULL) {
     for (i = 0; i < step_mem->inner_num_forcing; i++) {
-      retval = arkResizeVec(ark_mem, resize, resize_data, lrw_diff,
-                            liw_diff, y0, &(step_mem->inner_forcing[i]));
-      if (retval != ARK_SUCCESS) return(retval);
+      if (!arkResizeVec(ark_mem, resize, resize_data, lrw_diff,
+                        liw_diff, y0, &(step_mem->inner_forcing[i]))) {
+        arkProcessError(ark_mem, ARK_MEM_FAIL, "ARKode::MRIStep", "MRIStepResize",
+                        "Unable to resize vector");
+        return(ARK_MEM_FAIL);
+      }
     }
   }
 
   /* Resize the RHS vectors */
   for (i=0; i<step_mem->stages; i++) {
-    retval = arkResizeVec(ark_mem, resize, resize_data, lrw_diff,
-                          liw_diff, y0, &step_mem->F[i]);
-    if (retval != ARK_SUCCESS)  return(retval);
+    if (!arkResizeVec(ark_mem, resize, resize_data, lrw_diff,
+                      liw_diff, y0, &step_mem->F[i])) {
+      arkProcessError(ark_mem, ARK_MEM_FAIL, "ARKode::ERKStep", "ERKStepResize",
+                      "Unable to resize vector");
+      return(ARK_MEM_FAIL);
+    }
   }
 
   return(ARK_SUCCESS);
@@ -140,7 +140,8 @@ int MRIStepResize(void *arkode_mem, N_Vector y0, realtype t0,
   MRIStepReInit:
 
   This routine re-initializes the MRIStep module to solve a new
-  problem of the same size as was previously solved.
+  problem of the same size as was previously solved (all counter
+  values are set to 0).
 
   NOTE: the inner stepper needs to be reinitialized before
   calling this function.
@@ -155,6 +156,13 @@ int MRIStepReInit(void* arkode_mem, ARKRhsFn fs, realtype t0, N_Vector y0)
   retval = mriStep_AccessStepMem(arkode_mem, "MRIStepReInit",
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS) return(retval);
+
+  /* Check if ark_mem was allocated */
+  if (ark_mem->MallocDone == SUNFALSE) {
+    arkProcessError(ark_mem, ARK_NO_MALLOC, "ARKode::MRIStep",
+                    "MRIStepReInit", MSG_ARK_NO_MALLOC);
+    return(ARK_NO_MALLOC);
+  }
 
   /* Check that fs is supplied */
   if (fs == NULL) {
@@ -171,7 +179,7 @@ int MRIStepReInit(void* arkode_mem, ARKRhsFn fs, realtype t0, N_Vector y0)
   }
 
   /* ReInitialize main ARKode infrastructure */
-  retval = arkReInit(arkode_mem, t0, y0);
+  retval = arkInit(arkode_mem, t0, y0, FIRST_INIT);
   if (retval != ARK_SUCCESS) {
     arkProcessError(ark_mem, retval, "ARKode::MRIStep", "MRIStepReInit",
                     "Unable to initialize main ARKode infrastructure");
@@ -198,6 +206,37 @@ int MRIStepReInit(void* arkode_mem, ARKRhsFn fs, realtype t0, N_Vector y0)
 
   /* check if inner integrator was attached successfully */
   if (retval != ARK_SUCCESS) return(ARK_INNERSTEP_ATTACH_ERR);
+
+  return(ARK_SUCCESS);
+}
+
+
+/*---------------------------------------------------------------
+  MRIStepReset:
+
+  This routine resets the MRIStep module state to solve the same
+  problem from the given time with the input state (all counter
+  values are retained).
+  ---------------------------------------------------------------*/
+int MRIStepReset(void* arkode_mem, realtype tR, N_Vector yR)
+{
+  ARKodeMem ark_mem;
+  ARKodeMRIStepMem step_mem;
+  int retval;
+
+  /* access ARKodeMRIStepMem structure */
+  retval = mriStep_AccessStepMem(arkode_mem, "MRIStepReset",
+                                 &ark_mem, &step_mem);
+  if (retval != ARK_SUCCESS) return(retval);
+
+  /* Initialize main ARKode infrastructure */
+  retval = arkInit(ark_mem, tR, yR, RESET_INIT);
+
+  if (retval != ARK_SUCCESS) {
+    arkProcessError(ark_mem, retval, "ARKode::MRIStep", "MRIStepReset",
+                    "Unable to initialize main ARKode infrastructure");
+    return(retval);
+  }
 
   return(ARK_SUCCESS);
 }
@@ -347,6 +386,10 @@ void MRIStepPrintMem(void* arkode_mem, FILE* outfile)
   ARKodeMRIStepMem step_mem;
   int retval;
 
+#ifdef SUNDIALS_DEBUG_PRINTVEC
+  int i;
+#endif
+
   /* access ARKodeMRIStepMem structure */
   retval = mriStep_AccessStepMem(arkode_mem, "MRIStepPrintMem",
                                  &ark_mem, &step_mem);
@@ -368,11 +411,11 @@ void MRIStepPrintMem(void* arkode_mem, FILE* outfile)
   fprintf(outfile,"MRIStep: Butcher table:\n");
   ARKodeButcherTable_Write(step_mem->B, outfile);
 
-#ifdef DEBUG_OUTPUT
+#ifdef SUNDIALS_DEBUG_PRINTVEC
   /* output vector quantities */
   for (i=0; i<step_mem->stages; i++) {
     fprintf(outfile,"MRIStep: F[%i]:\n", i);
-    N_VPrint_Serial(step_mem->F[i]);
+    N_VPrintFile(step_mem->F[i], outfile);
   }
 #endif
 
@@ -470,7 +513,7 @@ void* mriStep_Create(ARKRhsFn fs, realtype t0, N_Vector y0)
   step_mem->post_inner_evolve = NULL;
 
   /* Initialize main ARKode infrastructure (allocates vectors) */
-  retval = arkInit(ark_mem, t0, y0);
+  retval = arkInit(ark_mem, t0, y0, FIRST_INIT);
   if (retval != ARK_SUCCESS) {
     arkProcessError(ark_mem, retval, "ARKode::MRIStep", "MRIStepCreate",
                     "Unable to initialize main ARKode infrastructure");
@@ -524,30 +567,30 @@ int mriStep_AttachARK(void* arkode_mem, void* inner_mem)
 
   This routine is called just prior to performing internal time
   steps (after all user "set" routines have been called) from
-  within arkInitialSetup (init_type == 0) or arkPostResizeSetup
-  (init_type == 1).
+  within arkInitialSetup.
 
-  With init_type == 0, this routine:
+  With initialization types FIRST_INIT this routine:
   - sets/checks the ARK Butcher tables to be used
   - allocates any memory that depends on the number of ARK
     stages, method order, or solver options
+  - sets the call_fullrhs flag
 
-  With init_type == 1, this routine does nothing.
+  With other initialization types, this routine does nothing.
   ---------------------------------------------------------------*/
 int mriStep_Init(void* arkode_mem, int init_type)
 {
   ARKodeMem ark_mem;
   ARKodeMRIStepMem step_mem;
-  sunindextype Blrw, Bliw;
   int retval, j;
-
-  /* immediately return if init_type == 1 */
-  if (init_type == 1)  return(ARK_SUCCESS);
 
   /* access ARKodeMRIStepMem structure */
   retval = mriStep_AccessStepMem(arkode_mem, "mriStep_Init",
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS) return(retval);
+
+  /* immediately return if resize or reset */
+  if (init_type == RESIZE_INIT || init_type == RESET_INIT)
+    return(ARK_SUCCESS);
 
   /* assume fixed outer step size */
   if (!ark_mem->fixedstep) {
@@ -576,11 +619,6 @@ int mriStep_Init(void* arkode_mem, int init_type)
                     "mriStep_Init", "Error in Butcher table");
     return(ARK_ILL_INPUT);
   }
-
-  /* note Butcher table space requirements */
-  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
-  ark_mem->liw += Bliw;
-  ark_mem->lrw += Blrw;
 
   /* Allocate MRI RHS vector memory, update storage requirements */
   /*   Allocate F[0] ... F[stages-1] if needed */
@@ -614,6 +652,20 @@ int mriStep_Init(void* arkode_mem, int init_type)
     if (step_mem->Xvecs == NULL)  return(ARK_MEM_FAIL);
     ark_mem->liw += (step_mem->stages + 1);   /* pointers */
   }
+
+  /* Limit interpolant degree based on method order (use negative
+     argument to specify update instead of overwrite) */
+  if (ark_mem->interp != NULL) {
+    retval = arkInterpSetDegree(ark_mem, ark_mem->interp, -(step_mem->q-1));
+    if (retval != ARK_SUCCESS) {
+      arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::MRIStep", "mriStep_Init",
+                      "Unable to update interpolation polynomial degree");
+      return(ARK_ILL_INPUT);
+    }
+  }
+
+  /* Signal to shared arkode module that fullrhs is required after each step */
+  ark_mem->call_fullrhs = SUNTRUE;
 
   return(ARK_SUCCESS);
 }
@@ -789,9 +841,9 @@ int mriStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS) return(retval);
 
-#ifdef DEBUG_OUTPUT
+#ifdef SUNDIALS_DEBUG_PRINTVEC
     printf("stage 0 RHS:\n");
-    N_VPrint_Serial(step_mem->F[0]);
+    N_VPrint(step_mem->F[0]);
 #endif
 
   /* Loop over internal stages to the step; since the method is explicit
@@ -801,7 +853,7 @@ int mriStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
     /* Set current stage time */
     ark_mem->tcur = ark_mem->tn + step_mem->B->c[is]*ark_mem->h;
 
-#ifdef DEBUG_OUTPUT
+#ifdef SUNDIALS_DEBUG
     printf("step %li,  stage %i,  h = %"RSYM",  t_n = %"RSYM"\n",
            ark_mem->nst, is, ark_mem->h, ark_mem->tcur);
 #endif
@@ -849,6 +901,14 @@ int mriStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
       if (retval != 0) return(ARK_INNERTOOUTER_FAIL);
     }
 
+    /* apply user-supplied stage postprocessing function (if supplied) */
+    if (ark_mem->ProcessStage != NULL) {
+      retval = ark_mem->ProcessStage(ark_mem->tcur,
+                                     ark_mem->ycur,
+                                     ark_mem->user_data);
+      if (retval != 0) return(ARK_POSTPROCESS_STAGE_FAIL);
+    }
+
     /* compute updated slow RHS */
     retval = step_mem->fs(ark_mem->tcur, ark_mem->ycur,
                           step_mem->F[is], ark_mem->user_data);
@@ -856,9 +916,9 @@ int mriStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
     if (retval < 0)  return(ARK_RHSFUNC_FAIL);
     if (retval > 0)  return(ARK_UNREC_RHSFUNC_ERR);
 
-#ifdef DEBUG_OUTPUT
+#ifdef SUNDIALS_DEBUG_PRINTVEC
     printf("RHS:\n");
-    N_VPrint_Serial(step_mem->F[is]);
+    N_VPrint(step_mem->F[is]);
 #endif
 
   } /* loop over stages */
@@ -905,10 +965,9 @@ int mriStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
     if (retval != 0) return(ARK_INNERTOOUTER_FAIL);
   }
 
-#ifdef DEBUG_OUTPUT
-    printf("error estimate = %"RSYM"\n", dsm);
+#ifdef SUNDIALS_DEBUG_PRINTVEC
     printf("updated solution:\n");
-    N_VPrint_Serial(ark_mem->ycur);
+    N_VPrint(ark_mem->ycur);
 #endif
 
   /* Solver diagnostics reporting */
@@ -979,8 +1038,9 @@ booleantype mriStep_CheckNVector(N_Vector tmpl)
   ---------------------------------------------------------------*/
 int mriStep_SetButcherTable(ARKodeMem ark_mem)
 {
-  ARKodeMRIStepMem step_mem;
   int itable;
+  ARKodeMRIStepMem step_mem;
+  sunindextype Bliw, Blrw;
 
   /* access ARKodeMRIStepMem structure */
   if (ark_mem->step_mem==NULL) {
@@ -1011,6 +1071,11 @@ int mriStep_SetButcherTable(ARKodeMem ark_mem)
 
   /* load the Butcher table */
   if (itable > -1) step_mem->B = ARKodeButcherTable_LoadERK(itable);
+
+  /* note Butcher table space requirements */
+  ARKodeButcherTable_Space(step_mem->B, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
 
   /* set [redundant] stored values for stage numbers and method orders */
   if (step_mem->B != NULL) {

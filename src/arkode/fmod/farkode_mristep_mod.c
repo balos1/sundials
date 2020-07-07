@@ -291,6 +291,22 @@ SWIGEXPORT int _wrap_FMRIStepReInit(void *farg1, ARKRhsFn farg2, double const *f
 }
 
 
+SWIGEXPORT int _wrap_FMRIStepReset(void *farg1, double const *farg2, N_Vector farg3) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  realtype arg2 ;
+  N_Vector arg3 = (N_Vector) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (realtype)(*farg2);
+  arg3 = (N_Vector)(farg3);
+  result = (int)MRIStepReset(arg1,arg2,arg3);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
 SWIGEXPORT int _wrap_FMRIStepRootInit(void *farg1, int const *farg2, ARKRootFn farg3) {
   int fresult ;
   void *arg1 = (void *) 0 ;
@@ -314,6 +330,34 @@ SWIGEXPORT int _wrap_FMRIStepSetDefaults(void *farg1) {
   
   arg1 = (void *)(farg1);
   result = (int)MRIStepSetDefaults(arg1);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FMRIStepSetInterpolantType(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)MRIStepSetInterpolantType(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FMRIStepSetInterpolantDegree(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)MRIStepSetInterpolantDegree(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -503,15 +547,29 @@ SWIGEXPORT int _wrap_FMRIStepSetDiagnostics(void *farg1, void *farg2) {
 }
 
 
-SWIGEXPORT int _wrap_FMRIStepSetPostprocessStepFn(void *farg1, ARKPostProcessStepFn farg2) {
+SWIGEXPORT int _wrap_FMRIStepSetPostprocessStepFn(void *farg1, ARKPostProcessFn farg2) {
   int fresult ;
   void *arg1 = (void *) 0 ;
-  ARKPostProcessStepFn arg2 = (ARKPostProcessStepFn) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
   int result;
   
   arg1 = (void *)(farg1);
-  arg2 = (ARKPostProcessStepFn)(farg2);
+  arg2 = (ARKPostProcessFn)(farg2);
   result = (int)MRIStepSetPostprocessStepFn(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FMRIStepSetPostprocessStageFn(void *farg1, ARKPostProcessFn farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (ARKPostProcessFn)(farg2);
+  result = (int)MRIStepSetPostprocessStageFn(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }

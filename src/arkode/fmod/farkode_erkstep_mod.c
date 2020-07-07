@@ -289,6 +289,22 @@ SWIGEXPORT int _wrap_FERKStepReInit(void *farg1, ARKRhsFn farg2, double const *f
 }
 
 
+SWIGEXPORT int _wrap_FERKStepReset(void *farg1, double const *farg2, N_Vector farg3) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  realtype arg2 ;
+  N_Vector arg3 = (N_Vector) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (realtype)(*farg2);
+  arg3 = (N_Vector)(farg3);
+  result = (int)ERKStepReset(arg1,arg2,arg3);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
 SWIGEXPORT int _wrap_FERKStepSStolerances(void *farg1, double const *farg2, double const *farg3) {
   int fresult ;
   void *arg1 = (void *) 0 ;
@@ -372,6 +388,34 @@ SWIGEXPORT int _wrap_FERKStepSetOrder(void *farg1, int const *farg2) {
   arg1 = (void *)(farg1);
   arg2 = (int)(*farg2);
   result = (int)ERKStepSetOrder(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FERKStepSetInterpolantType(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)ERKStepSetInterpolantType(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FERKStepSetInterpolantDegree(void *farg1, int const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  int arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (int)(*farg2);
+  result = (int)ERKStepSetInterpolantDegree(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -470,6 +514,20 @@ SWIGEXPORT int _wrap_FERKStepSetMaxGrowth(void *farg1, double const *farg2) {
   arg1 = (void *)(farg1);
   arg2 = (realtype)(*farg2);
   result = (int)ERKStepSetMaxGrowth(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FERKStepSetMinReduction(void *farg1, double const *farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  realtype arg2 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (realtype)(*farg2);
+  result = (int)ERKStepSetMinReduction(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }
@@ -809,15 +867,29 @@ SWIGEXPORT int _wrap_FERKStepSetDiagnostics(void *farg1, void *farg2) {
 }
 
 
-SWIGEXPORT int _wrap_FERKStepSetPostprocessStepFn(void *farg1, ARKPostProcessStepFn farg2) {
+SWIGEXPORT int _wrap_FERKStepSetPostprocessStepFn(void *farg1, ARKPostProcessFn farg2) {
   int fresult ;
   void *arg1 = (void *) 0 ;
-  ARKPostProcessStepFn arg2 = (ARKPostProcessStepFn) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
   int result;
   
   arg1 = (void *)(farg1);
-  arg2 = (ARKPostProcessStepFn)(farg2);
+  arg2 = (ARKPostProcessFn)(farg2);
   result = (int)ERKStepSetPostprocessStepFn(arg1,arg2);
+  fresult = (int)(result);
+  return fresult;
+}
+
+
+SWIGEXPORT int _wrap_FERKStepSetPostprocessStageFn(void *farg1, ARKPostProcessFn farg2) {
+  int fresult ;
+  void *arg1 = (void *) 0 ;
+  ARKPostProcessFn arg2 = (ARKPostProcessFn) 0 ;
+  int result;
+  
+  arg1 = (void *)(farg1);
+  arg2 = (ARKPostProcessFn)(farg2);
+  result = (int)ERKStepSetPostprocessStageFn(arg1,arg2);
   fresult = (int)(result);
   return fresult;
 }

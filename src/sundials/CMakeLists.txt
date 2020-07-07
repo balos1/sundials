@@ -42,8 +42,16 @@ set(sundials_HEADERS
   sundials_version.h
   )
 
+if(CUDA_ENABLE AND CMAKE_CUDA_COMPILER)
+  list(APPEND sundials_HEADERS sundials_cuda_policies.hpp)
+  set(additional_files sundials_blprofile.cpp)
+endif()
+
 # Add prefix with complete path to the SUNDIALS header files
 add_prefix(${sundials_SOURCE_DIR}/include/sundials/ sundials_HEADERS)
+
+# Define C preprocessor flag -DBUILD_SUNDIALS_LIBRARY
+add_definitions(-DBUILD_SUNDIALS_LIBRARY)
 
 # Create an object library out of the generic sundials modules
 if(BUILD_STATIC_LIBS)
@@ -59,7 +67,8 @@ if(BUILD_STATIC_LIBS)
     sundials_nonlinearsolver.c
     sundials_nvector.c
     sundials_nvector_senswrapper.c
-    sundials_version.c)
+    sundials_version.c
+    ${additional_files})
 endif()
 
 if(BUILD_SHARED_LIBS)
@@ -75,7 +84,8 @@ if(BUILD_SHARED_LIBS)
       sundials_nonlinearsolver.c
       sundials_nvector.c
       sundials_nvector_senswrapper.c
-      sundials_version.c)
+      sundials_version.c
+      ${additional_files})
   set_target_properties(sundials_generic_shared_obj PROPERTIES
                         POSITION_INDEPENDENT_CODE TRUE)
 endif()

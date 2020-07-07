@@ -12,6 +12,7 @@
  * SUNDIALS Copyright End
  * -----------------------------------------------------------------*/
 
+#include <iostream>
 #include "sundials_blprofile.h"
 #include "nvToolsExt.h"
 

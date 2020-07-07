@@ -39,6 +39,13 @@ set(cvode_SOURCES
 set(cvode_cuda_SOURCES cvode_fused_cuda.cu)
 set(cvode_stub_SOURCES cvode_fused_stubs.c)
 
+if(CUDA_ENABLE AND CMAKE_CUDA_COMPILER)
+  set(additional_files ${sundials_SOURCE_DIR}/src/sundials/sundials_blprofile.cpp)
+  include_directories(${CUDA_INCLUDE_DIRS})
+  link_libraries(-L${CUDA_TOOLKIT_ROOT_DIR}/lib64 -lnvToolsExt)
+endif()
+
+
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the CVODE library
 set(shared_SOURCES
@@ -55,6 +62,7 @@ set(shared_SOURCES
   ${sundials_SOURCE_DIR}/src/sundials/sundials_nvector_senswrapper.c
   ${sundials_SOURCE_DIR}/src/sundials/sundials_futils.c
   ${sundials_SOURCE_DIR}/src/nvector/serial/nvector_serial.c
+  ${additional_files}
   )
 
 # Add variable sunmatrix_SOURCES with the common SUNMatrix sources which will

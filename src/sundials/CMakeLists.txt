@@ -45,9 +45,9 @@ set(sundials_HEADERS
 if(CUDA_ENABLE AND CMAKE_CUDA_COMPILER)
   list(APPEND sundials_HEADERS sundials_cuda_policies.hpp)
 
-  set(additional_files sundials_blprofile.cpp)
+  set(additional_files sundials_profiler.cpp)
   include_directories(${CUDA_INCLUDE_DIRS})
-  link_libraries(-L${CUDA_TOOLKIT_ROOT_DIR}/lib64 -lnvToolsExt)
+  link_libraries(-L${CUDA_SDK_ROOT_DIR}/lib -lnvToolsExt)
 endif()
 
 # Add prefix with complete path to the SUNDIALS header files

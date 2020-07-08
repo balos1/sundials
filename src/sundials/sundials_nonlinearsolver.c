@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <sundials/sundials_nonlinearsolver.h>
 
-#include "sundials_blprofile.h"
+#include "sundials_profiler.h"
 
 /* -----------------------------------------------------------------------------
  * Create a new empty SUNLinearSolver object
@@ -110,9 +110,9 @@ int SUNNonlinSolSolve(SUNNonlinearSolver NLS,
                       booleantype callLSetup, void* mem)
 {
   int retval;
-  SUN_BL_PROFILE_BEGIN("SUNNonlinSolSolve");
+  SUN_PROFILER_BEGIN("SUNNonlinSolSolve");
   retval = (int) NLS->ops->solve(NLS, y0, y, w, tol, callLSetup, mem);
-  SUN_BL_PROFILE_END("SUNNonlinSolSolve");
+  SUN_PROFILER_END("SUNNonlinSolSolve");
   return retval;
 }
 

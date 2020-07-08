@@ -23,7 +23,7 @@
 
 #include <sundials/sundials_nvector.h>
 
-#include "sundials_blprofile.h"
+#include "sundials_profiler.h"
 
 
 /* -----------------------------------------------------------------
@@ -222,18 +222,18 @@ N_Vector_ID N_VGetVectorID(N_Vector w)
 N_Vector N_VClone(N_Vector w)
 {
   N_Vector v;
-  SUN_BL_PROFILE_BEGIN("N_VClone");
+  SUN_PROFILER_BEGIN("N_VClone");
   v = w->ops->nvclone(w);
-  SUN_BL_PROFILE_END("N_VClone");
+  SUN_PROFILER_END("N_VClone");
   return v;
 }
 
 N_Vector N_VCloneEmpty(N_Vector w)
 {
   N_Vector v;
-  SUN_BL_PROFILE_BEGIN("N_VCloneEmpty");
+  SUN_PROFILER_BEGIN("N_VCloneEmpty");
   v = w->ops->nvcloneempty(w);
-  SUN_BL_PROFILE_END("N_VCloneEmpty");
+  SUN_PROFILER_END("N_VCloneEmpty");
   return v;
 }
 
@@ -290,163 +290,163 @@ sunindextype N_VGetLength(N_Vector v)
 
 void N_VLinearSum(realtype a, N_Vector x, realtype b, N_Vector y, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VLinearSum");
+  SUN_PROFILER_BEGIN("N_VLinearSum");
   z->ops->nvlinearsum(a, x, b, y, z);
-  SUN_BL_PROFILE_END("N_VLinearSum");
+  SUN_PROFILER_END("N_VLinearSum");
   return;
 }
 
 void N_VConst(realtype c, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VConst");
+  SUN_PROFILER_BEGIN("N_VConst");
   z->ops->nvconst(c, z);
-  SUN_BL_PROFILE_END("N_VConst");
+  SUN_PROFILER_END("N_VConst");
   return;
 }
 
 void N_VProd(N_Vector x, N_Vector y, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VProd");
+  SUN_PROFILER_BEGIN("N_VProd");
   z->ops->nvprod(x, y, z);
-  SUN_BL_PROFILE_END("N_VProd");
+  SUN_PROFILER_END("N_VProd");
   return;
 }
 
 void N_VDiv(N_Vector x, N_Vector y, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VDiv");
+  SUN_PROFILER_BEGIN("N_VDiv");
   z->ops->nvdiv(x, y, z);
-  SUN_BL_PROFILE_END("N_VDiv");
+  SUN_PROFILER_END("N_VDiv");
   return;
 }
 
 void N_VScale(realtype c, N_Vector x, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VScale");
+  SUN_PROFILER_BEGIN("N_VScale");
   z->ops->nvscale(c, x, z);
-  SUN_BL_PROFILE_END("N_VScale");
+  SUN_PROFILER_END("N_VScale");
   return;
 }
 
 void N_VAbs(N_Vector x, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VAbs");
+  SUN_PROFILER_BEGIN("N_VAbs");
   z->ops->nvabs(x, z);
-  SUN_BL_PROFILE_END("N_VAbs");
+  SUN_PROFILER_END("N_VAbs");
   return;
 }
 
 void N_VInv(N_Vector x, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VInv");
+  SUN_PROFILER_BEGIN("N_VInv");
   z->ops->nvinv(x, z);
-  SUN_BL_PROFILE_END("N_VInv");
+  SUN_PROFILER_END("N_VInv");
   return;
 }
 
 void N_VAddConst(N_Vector x, realtype b, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VAddConst");
+  SUN_PROFILER_BEGIN("N_VAddConst");
   z->ops->nvaddconst(x, b, z);
-  SUN_BL_PROFILE_END("N_VAddConst");
+  SUN_PROFILER_END("N_VAddConst");
   return;
 }
 
 realtype N_VDotProd(N_Vector x, N_Vector y)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VDotProd");
+  SUN_PROFILER_BEGIN("N_VDotProd");
   result = (realtype) y->ops->nvdotprod(x, y);
-  SUN_BL_PROFILE_END("N_VDotProd");
+  SUN_PROFILER_END("N_VDotProd");
   return result;
 }
 
 realtype N_VMaxNorm(N_Vector x)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VMaxNorm");
+  SUN_PROFILER_BEGIN("N_VMaxNorm");
   result = (realtype) x->ops->nvmaxnorm(x);
-  SUN_BL_PROFILE_END("N_VMaxNorm");
+  SUN_PROFILER_END("N_VMaxNorm");
   return result;
 }
 
 realtype N_VWrmsNorm(N_Vector x, N_Vector w)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VWrmsNorm");
+  SUN_PROFILER_BEGIN("N_VWrmsNorm");
   result = (realtype) x->ops->nvwrmsnorm(x, w);
-  SUN_BL_PROFILE_END("N_VWrmsNorm");
+  SUN_PROFILER_END("N_VWrmsNorm");
   return result;
 }
 
 realtype N_VWrmsNormMask(N_Vector x, N_Vector w, N_Vector id)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VWrmsNormMask");
+  SUN_PROFILER_BEGIN("N_VWrmsNormMask");
   result = (realtype) x->ops->nvwrmsnormmask(x, w, id);
-  SUN_BL_PROFILE_END("N_VWrmsNormMask");
+  SUN_PROFILER_END("N_VWrmsNormMask");
   return result;
 }
 
 realtype N_VMin(N_Vector x)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VMin");
+  SUN_PROFILER_BEGIN("N_VMin");
   result = (realtype) x->ops->nvmin(x);
-  SUN_BL_PROFILE_END("N_VMin");
+  SUN_PROFILER_END("N_VMin");
   return result;
 }
 
 realtype N_VWL2Norm(N_Vector x, N_Vector w)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VWL2Norm");
+  SUN_PROFILER_BEGIN("N_VWL2Norm");
   result = (realtype) x->ops->nvwl2norm(x, w);
-  SUN_BL_PROFILE_END("N_VWL2Norm");
+  SUN_PROFILER_END("N_VWL2Norm");
   return result;
 }
 
 realtype N_VL1Norm(N_Vector x)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VL1Norm");
+  SUN_PROFILER_BEGIN("N_VL1Norm");
   result = (realtype) x->ops->nvl1norm(x);
-  SUN_BL_PROFILE_END("N_VL1Norm");
+  SUN_PROFILER_END("N_VL1Norm");
   return result;
 }
 
 void N_VCompare(realtype c, N_Vector x, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VCompare");
+  SUN_PROFILER_BEGIN("N_VCompare");
   z->ops->nvcompare(c, x, z);
-  SUN_BL_PROFILE_END("N_VCompare");
+  SUN_PROFILER_END("N_VCompare");
   return;
 }
 
 booleantype N_VInvTest(N_Vector x, N_Vector z)
 {
   booleantype result;
-  SUN_BL_PROFILE_BEGIN("N_VInvTest");
+  SUN_PROFILER_BEGIN("N_VInvTest");
   result = (booleantype) z->ops->nvinvtest(x, z);
-  SUN_BL_PROFILE_END("N_VInvTest");
+  SUN_PROFILER_END("N_VInvTest");
   return result;
 }
 
 booleantype N_VConstrMask(N_Vector c, N_Vector x, N_Vector m)
 {
   booleantype result;
-  SUN_BL_PROFILE_BEGIN("N_VConstrMask");
+  SUN_PROFILER_BEGIN("N_VConstrMask");
   result = (booleantype) x->ops->nvconstrmask(c, x, m);
-  SUN_BL_PROFILE_END("N_VConstrMask");
+  SUN_PROFILER_END("N_VConstrMask");
   return result;
 }
 
 realtype N_VMinQuotient(N_Vector num, N_Vector denom)
 {
   realtype result;
-  SUN_BL_PROFILE_BEGIN("N_VMinQuotient");
+  SUN_PROFILER_BEGIN("N_VMinQuotient");
   result = (realtype) num->ops->nvminquotient(num, denom);
-  SUN_BL_PROFILE_END("N_VMinQuotient");
+  SUN_PROFILER_END("N_VMinQuotient");
   return result;
 }
 
@@ -456,7 +456,7 @@ realtype N_VMinQuotient(N_Vector num, N_Vector denom)
 
 int N_VLinearCombination(int nvec, realtype* c, N_Vector* X, N_Vector z)
 {
-  SUN_BL_PROFILE_BEGIN("N_VLinearCombination");
+  SUN_PROFILER_BEGIN("N_VLinearCombination");
   int i, result;
   realtype ONE=RCONST(1.0);
 
@@ -474,7 +474,7 @@ int N_VLinearCombination(int nvec, realtype* c, N_Vector* X, N_Vector z)
 
   }
 
-  SUN_BL_PROFILE_END("N_VLinearCombination");
+  SUN_PROFILER_END("N_VLinearCombination");
   return result;
 }
 

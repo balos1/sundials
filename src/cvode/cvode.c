@@ -15,7 +15,7 @@
  * This is the implementation file for the main CVODE integrator.
  * -----------------------------------------------------------------*/
 
-#include "sundials_blprofile.h"
+#include "sundials_profiler.h"
 
 /*=================================================================*/
 /* Import Header Files                                             */
@@ -1008,6 +1008,8 @@ int CVodeRootInit(void *cvode_mem, int nrtfn, CVRootFn g)
 int CVode(void *cvode_mem, realtype tout, N_Vector yout,
           realtype *tret, int itask)
 {
+  SUN_PROFILER_BEGIN("CVode");
+
   CVodeMem cv_mem;
   long int nstloc;
   int retval, hflag, kflag, istate, ir, ier, irfndp;
@@ -1441,6 +1443,7 @@ int CVode(void *cvode_mem, realtype tout, N_Vector yout,
 
   } /* end looping for internal steps */
 
+  SUN_PROFILER_END("CVode");
   return(istate);
 }
 
@@ -1468,7 +1471,7 @@ int CVode(void *cvode_mem, realtype tout, N_Vector yout,
 
 int CVodeGetDky(void *cvode_mem, realtype t, int k, N_Vector dky)
 {
-  SUN_BL_PROFILE_BEGIN("CVodeGetDky");
+  SUN_PROFILER_BEGIN("CVodeGetDky");
 
   realtype s, r;
   realtype tfuzz, tp, tn1;
@@ -1525,7 +1528,7 @@ int CVodeGetDky(void *cvode_mem, realtype t, int k, N_Vector dky)
   r = SUNRpowerI(cv_mem->cv_h, -k);
   N_VScale(r, dky, dky);
 
-  SUN_BL_PROFILE_END("CVodeGetDky");
+  SUN_PROFILER_END("CVodeGetDky");
   return(CV_SUCCESS);
 }
 
@@ -1761,6 +1764,7 @@ static void cvFreeVectors(CVodeMem cv_mem)
 
 static int cvInitialSetup(CVodeMem cv_mem)
 {
+  SUN_PROFILER_BEGIN("cvInitialSetup");
   int ier;
   booleantype conOK;
 
@@ -1841,6 +1845,7 @@ static int cvInitialSetup(CVodeMem cv_mem)
     cv_mem->proj_applied = SUNFALSE;
   }
 
+  SUN_PROFILER_END("cvInitialSetup");
   /* Initial setup complete */
   return(CV_SUCCESS);
 }
@@ -1888,7 +1893,7 @@ static int cvInitialSetup(CVodeMem cv_mem)
 
 static int cvHin(CVodeMem cv_mem, realtype tout)
 {
-  SUN_BL_PROFILE_BEGIN("cvHin");
+  SUN_PROFILER_BEGIN("cvHin");
 
   int retval, sign, count1, count2;
   realtype tdiff, tdist, tround, hlb, hub;
@@ -1987,7 +1992,7 @@ static int cvHin(CVodeMem cv_mem, realtype tout)
   if (sign == -1) h0 = -h0;
   cv_mem->cv_h = h0;
 
-  SUN_BL_PROFILE_END("cvHin");
+  SUN_PROFILER_END("cvHin");
   return(CV_SUCCESS);
 }
 
@@ -2000,6 +2005,8 @@ static int cvHin(CVodeMem cv_mem, realtype tout)
 
 static realtype cvUpperBoundH0(CVodeMem cv_mem, realtype tdist)
 {
+  SUN_PROFILER_BEGIN("cvUpperBoundH0");
+
   realtype hub_inv, hub;
   N_Vector temp1, temp2;
 
@@ -2033,6 +2040,7 @@ static realtype cvUpperBoundH0(CVodeMem cv_mem, realtype tdist)
 
   if (hub*hub_inv > ONE) hub = ONE/hub_inv;
 
+  SUN_PROFILER_END("cvUpperBoundH0");
   return(hub);
 }
 
@@ -2045,19 +2053,21 @@ static realtype cvUpperBoundH0(CVodeMem cv_mem, realtype tdist)
 
 static int cvYddNorm(CVodeMem cv_mem, realtype hg, realtype *yddnrm)
 {
+  SUN_PROFILER_BEGIN("cvYddNorm");
   int retval;
 
   N_VLinearSum(hg, cv_mem->cv_zn[1], ONE, cv_mem->cv_zn[0], cv_mem->cv_y);
   retval = cv_mem->cv_f(cv_mem->cv_tn+hg, cv_mem->cv_y,
                         cv_mem->cv_tempv, cv_mem->cv_user_data);
   cv_mem->cv_nfe++;
-  if (retval < 0) return(CV_RHSFUNC_FAIL);
-  if (retval > 0) return(RHSFUNC_RECVR);
+  if (retval < 0) { SUN_PROFILER_END("cvYddNorm"); return(CV_RHSFUNC_FAIL); }
+  if (retval > 0) { SUN_PROFILER_END("cvYddNorm"); return(RHSFUNC_RECVR); }
 
   N_VLinearSum(ONE/hg, cv_mem->cv_tempv, -ONE/hg, cv_mem->cv_zn[1], cv_mem->cv_tempv);
 
   *yddnrm = N_VWrmsNorm(cv_mem->cv_tempv, cv_mem->cv_ewt);
 
+  SUN_PROFILER_END("cvYddNorm");
   return(CV_SUCCESS);
 }
 
@@ -2089,6 +2099,8 @@ static int cvYddNorm(CVodeMem cv_mem, realtype hg, realtype *yddnrm)
 
 static int cvStep(CVodeMem cv_mem)
 {
+  SUN_PROFILER_BEGIN("cvStep");
+
   realtype saved_t;          /* time to restore to if a failure occurs   */
   realtype dsm;              /* local truncation error estimate          */
   int ncf;                   /* corrector failures in this step attempt  */
@@ -2128,7 +2140,7 @@ static int cvStep(CVodeMem cv_mem)
     if (kflag == PREDICT_AGAIN) continue;
 
     /* Return if nonlinear solve failed and recovery is not possible. */
-    if (kflag != DO_ERROR_TEST) return(kflag);
+    if (kflag != DO_ERROR_TEST) { SUN_PROFILER_END("cvStep"); return(kflag); }
 
     /* Check if a projection needs to be performed */
     cv_mem->proj_applied = SUNFALSE;
@@ -2142,7 +2154,7 @@ static int cvStep(CVodeMem cv_mem)
       if (pflag == PREDICT_AGAIN) continue;
 
       /* Return if projection failed and recovery is not possible */
-      if (pflag != CV_SUCCESS) return(pflag);
+      if (pflag != CV_SUCCESS) { SUN_PROFILER_END("cvStep"); return(pflag); }
     }
 
     /* Perform error test (nflag=CV_SUCCESS) */
@@ -2152,7 +2164,7 @@ static int cvStep(CVodeMem cv_mem)
     if (eflag == TRY_AGAIN) continue;
 
     /* Return if error test failed and recovery not possible. */
-    if (eflag != CV_SUCCESS) return(eflag);
+    if (eflag != CV_SUCCESS) { SUN_PROFILER_END("cvStep"); return(eflag); }
 
     /* Error test passed (eflag=CV_SUCCESS), break from loop */
     break;
@@ -2178,6 +2190,7 @@ static int cvStep(CVodeMem cv_mem)
 
   N_VScale(cv_mem->cv_tq[2], cv_mem->cv_acor, cv_mem->cv_acor);
 
+  SUN_PROFILER_END("cvStep");
   return(CV_SUCCESS);
 }
 
@@ -2391,7 +2404,7 @@ static void cvDecreaseBDF(CVodeMem cv_mem)
 
 void cvRescale(CVodeMem cv_mem)
 {
-  SUN_BL_PROFILE_BEGIN("cvRescale");
+  SUN_PROFILER_BEGIN("cvRescale");
 
   int j;
 
@@ -2408,7 +2421,7 @@ void cvRescale(CVodeMem cv_mem)
   cv_mem->cv_hscale = cv_mem->cv_h;
   cv_mem->cv_nscon = 0;
 
-  SUN_BL_PROFILE_END("cvRescale");
+  SUN_PROFILER_END("cvRescale");
 }
 
 /*
@@ -2423,7 +2436,7 @@ void cvRescale(CVodeMem cv_mem)
 
 static void cvPredict(CVodeMem cv_mem)
 {
-  SUN_BL_PROFILE_BEGIN("cvPredict");
+  SUN_PROFILER_BEGIN("cvPredict");
 
   int j, k;
 
@@ -2438,7 +2451,7 @@ static void cvPredict(CVodeMem cv_mem)
       N_VLinearSum(ONE, cv_mem->cv_zn[j-1], ONE,
                    cv_mem->cv_zn[j], cv_mem->cv_zn[j-1]);
 
-  SUN_BL_PROFILE_END("cvPredict");
+  SUN_PROFILER_END("cvPredict");
 }
 
 /*
@@ -2461,7 +2474,7 @@ static void cvPredict(CVodeMem cv_mem)
 
 static void cvSet(CVodeMem cv_mem)
 {
-  SUN_BL_PROFILE_BEGIN("cvSet");
+  SUN_PROFILER_BEGIN("cvSet");
   switch(cv_mem->cv_lmm) {
   case CV_ADAMS:
     cvSetAdams(cv_mem);
@@ -2475,7 +2488,7 @@ static void cvSet(CVodeMem cv_mem)
   if (cv_mem->cv_nst == 0) cv_mem->cv_gammap = cv_mem->cv_gamma;
   cv_mem->cv_gamrat = (cv_mem->cv_nst > 0) ?
     cv_mem->cv_gamma / cv_mem->cv_gammap : ONE;  /* protect x / x != 1.0 */
-  SUN_BL_PROFILE_END("cvSet");
+  SUN_PROFILER_END("cvSet");
 }
 
 /*
@@ -2719,6 +2732,8 @@ static void cvSetTqBDF(CVodeMem cv_mem, realtype hsum, realtype alpha0,
 
 static int cvNls(CVodeMem cv_mem, int nflag)
 {
+  SUN_PROFILER_BEGIN("cvNls");
+
   int flag = CV_SUCCESS;
   booleantype callSetup;
   long int nni_inc;
@@ -2744,8 +2759,8 @@ static int cvNls(CVodeMem cv_mem, int nflag)
   /* call nonlinear solver setup if it exists */
   if ((cv_mem->NLS)->ops->setup) {
     flag = SUNNonlinSolSetup(cv_mem->NLS, cv_mem->cv_acor, cv_mem);
-    if (flag < 0) return(CV_NLS_SETUP_FAIL);
-    if (flag > 0) return(SUN_NLS_CONV_RECVR);
+    if (flag < 0) { SUN_PROFILER_END("cvNls"); return(CV_NLS_SETUP_FAIL); }
+    if (flag > 0) { SUN_PROFILER_END("cvNls"); return(SUN_NLS_CONV_RECVR); }
   }
 
   /* solve the nonlinear system */
@@ -2758,7 +2773,7 @@ static int cvNls(CVodeMem cv_mem, int nflag)
   cv_mem->cv_nni += nni_inc;
 
   /* if the solve failed return */
-  if (flag != CV_SUCCESS) return(flag);
+  if (flag != CV_SUCCESS) { SUN_PROFILER_END("cvNls"); return(flag); }
 
   /* solve successful */
 
@@ -2776,6 +2791,7 @@ static int cvNls(CVodeMem cv_mem, int nflag)
   if (cv_mem->cv_constraintsSet)
     flag = cvCheckConstraints(cv_mem);
 
+  SUN_PROFILER_END("cvNls");
   return(flag);
 }
 
@@ -2983,7 +2999,7 @@ void cvRestore(CVodeMem cv_mem, realtype saved_t)
 static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
                          int *nefPtr, realtype *dsmPtr)
 {
-  SUN_BL_PROFILE_BEGIN("cvDoErrorTest");
+  SUN_PROFILER_BEGIN("cvDoErrorTest");
 
   realtype dsm;
   int retval;
@@ -3046,7 +3062,7 @@ static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
 
   N_VScale(cv_mem->cv_h, cv_mem->cv_tempv, cv_mem->cv_zn[1]);
 
-  SUN_BL_PROFILE_END("cvDoErrorTest");
+  SUN_PROFILER_END("cvDoErrorTest");
   return(TRY_AGAIN);
 }
 
@@ -3070,7 +3086,7 @@ static int cvDoErrorTest(CVodeMem cv_mem, int *nflagPtr, realtype saved_t,
 
 static void cvCompleteStep(CVodeMem cv_mem)
 {
-  SUN_BL_PROFILE_BEGIN("cvCompleteStep");
+  SUN_PROFILER_BEGIN("cvCompleteStep");
 
   int i;
 
@@ -3110,7 +3126,7 @@ static void cvCompleteStep(CVodeMem cv_mem)
   }
 #endif
 
-  SUN_BL_PROFILE_END("cvCompleteStep");
+  SUN_PROFILER_END("cvCompleteStep");
 }
 
 /*
@@ -3124,7 +3140,7 @@ static void cvCompleteStep(CVodeMem cv_mem)
 
 static void cvPrepareNextStep(CVodeMem cv_mem, realtype dsm)
 {
-  SUN_BL_PROFILE_BEGIN("cvPrepareNextStep");
+  SUN_PROFILER_BEGIN("cvPrepareNextStep");
 
   /* If etamax = 1, defer step size or order changes */
   if (cv_mem->cv_etamax == ONE) {
@@ -3155,7 +3171,7 @@ static void cvPrepareNextStep(CVodeMem cv_mem, realtype dsm)
   cvChooseEta(cv_mem);
   cvSetEta(cv_mem);
 
-  SUN_BL_PROFILE_END("cvPrepareNextStep");
+  SUN_PROFILER_END("cvPrepareNextStep");
 }
 
 /*
@@ -4264,7 +4280,7 @@ int cvEwtSet(N_Vector ycur, N_Vector weight, void *data)
 
 static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 {
-  SUN_BL_PROFILE_BEGIN("cvEwtSetSS");
+  SUN_PROFILER_BEGIN("cvEwtSetSS");
 
 #ifdef SUNDIALS_BUILD_PACKAGE_FUSED_KERNELS
   if (cv_mem->cv_usefused)
@@ -4290,7 +4306,7 @@ static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
     N_VInv(cv_mem->cv_tempv, weight);
   }
 
-  SUN_BL_PROFILE_END("cvEwtSetSS");
+  SUN_PROFILER_END("cvEwtSetSS");
   return(0);
 }
 
@@ -4306,7 +4322,7 @@ static int cvEwtSetSS(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 
 static int cvEwtSetSV(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
 {
-  SUN_BL_PROFILE_BEGIN("cvEwtSetSV");
+  SUN_PROFILER_BEGIN("cvEwtSetSV");
 
 #ifdef SUNDIALS_BUILD_PACKAGE_FUSED_KERNELS
   if (cv_mem->cv_usefused)
@@ -4332,7 +4348,7 @@ static int cvEwtSetSV(CVodeMem cv_mem, N_Vector ycur, N_Vector weight)
     N_VInv(cv_mem->cv_tempv, weight);
   }
 
-  SUN_BL_PROFILE_END("cvEwtSetSV");
+  SUN_PROFILER_END("cvEwtSetSV");
   return(0);
 }
 

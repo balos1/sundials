@@ -12,35 +12,26 @@
  * SUNDIALS Copyright End
  * -----------------------------------------------------------------*/
 
-#include <iostream>
-#include "sundials_blprofile.h"
-#include "nvToolsExt.h"
+#ifndef _SUNDIALS_PROFILER_H
+#define _SUNDIALS_PROFILER_H
 
-class NvtxProfiler
-{
-public:
-  explicit NvtxProfiler(const char* funcname)
-  {
-    /* r = nvtxRangeStartA(funcname); */
-    nvtxRangePushA(funcname);
-  }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  ~NvtxProfiler()
-  {
-    /* nvtxRangeEnd(r); */
-    nvtxRangePop();
-  }
+typedef void* SUNProfiler;
+SUNProfiler newSUNProfiler(const char* fname);
+void deleteSUNProfiler(SUNProfiler bl);
 
-private:
-  nvtxRangeId_t r;
-};
+#ifdef USE_PROFILER
+#define SUN_PROFILER_BEGIN(fname) SUNProfiler __scope_profiler = newSUNProfiler((fname))
+#define SUN_PROFILER_END(fname) deleteSUNProfiler(__scope_profiler)
+#else
+#define SUN_PROFILER_BEGIN(fname)
+#define SUN_PROFILER_END(fname)
+#endif
 
-SUNProfiler newSUNProfiler(const char* fname)
-{
-  return reinterpret_cast<void*>(new NvtxProfiler(fname));
+#ifdef __cplusplus
 }
-
-void deleteSUNProfiler(SUNProfiler bl)
-{
-  delete reinterpret_cast<NvtxProfiler*>(bl);
-}
+#endif
+#endif // _SUNDIALS_PROFILER_H

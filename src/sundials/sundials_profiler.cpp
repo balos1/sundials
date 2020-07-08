@@ -21,14 +21,14 @@ class NvtxProfiler
 public:
   explicit NvtxProfiler(const char* funcname)
   {
-    /* r = nvtxRangeStartA(funcname); */
-    nvtxRangePushA(funcname);
+    r = nvtxRangeStartA(funcname);
+    // nvtxRangePushA(funcname);
   }
 
   ~NvtxProfiler()
   {
-    /* nvtxRangeEnd(r); */
-    nvtxRangePop();
+    nvtxRangeEnd(r);
+    // nvtxRangePop();
   }
 
 private:

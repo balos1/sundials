@@ -42,7 +42,8 @@ set(cvode_stub_SOURCES cvode_fused_stubs.c)
 if(CUDA_ENABLE AND CMAKE_CUDA_COMPILER)
   set(additional_files ${sundials_SOURCE_DIR}/src/sundials/sundials_profiler.cpp)
   include_directories(${CUDA_INCLUDE_DIRS})
-  link_libraries(-L${CUDA_TOOLKIT_ROOT_DIR}/lib -lnvToolsExt)
+  get_filename_component(CUDA_CUDART_LIBRARY_DIR "${CUDA_CUDART_LIBRARY}" PATH CACHE)
+  link_libraries(-L${CUDA_CUDART_LIBRARY_DIR} -lnvToolsExt)
 endif()
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will

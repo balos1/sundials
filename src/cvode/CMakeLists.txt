@@ -40,11 +40,10 @@ set(cvode_cuda_SOURCES cvode_fused_cuda.cu)
 set(cvode_stub_SOURCES cvode_fused_stubs.c)
 
 if(CUDA_ENABLE AND CMAKE_CUDA_COMPILER)
-  set(additional_files ${sundials_SOURCE_DIR}/src/sundials/sundials_blprofile.cpp)
+  set(additional_files ${sundials_SOURCE_DIR}/src/sundials/sundials_profiler.cpp)
   include_directories(${CUDA_INCLUDE_DIRS})
-  link_libraries(-L${CUDA_TOOLKIT_ROOT_DIR}/lib64 -lnvToolsExt)
+  link_libraries(-L${CUDA_SDK_ROOT_DIR}/lib -lnvToolsExt)
 endif()
-
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the CVODE library

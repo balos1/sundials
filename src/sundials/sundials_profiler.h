@@ -23,13 +23,15 @@ typedef void* SUNProfiler;
 SUNProfiler newSUNProfiler(const char* fname);
 void deleteSUNProfiler(SUNProfiler bl);
 
-#ifdef USE_PROFILER
+/*#ifdef USE_PROFILER*/
 #define SUN_PROFILER_BEGIN(fname) SUNProfiler __scope_profiler = newSUNProfiler((fname))
 #define SUN_PROFILER_END(fname) deleteSUNProfiler(__scope_profiler)
+/*
 #else
 #define SUN_PROFILER_BEGIN(fname)
 #define SUN_PROFILER_END(fname)
 #endif
+*/
 
 #ifdef __cplusplus
 }

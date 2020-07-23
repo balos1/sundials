@@ -35,37 +35,18 @@ extern "C" {
 using namespace sundials;
 using namespace sundials::nvector_cuda;
 
-static void default_allocfn(sunindextype length, size_t size, void** h_ptr, void** d_ptr)
-{
-  SUNDIALS_CUDA_VERIFY(cudaMalloc(d_ptr, length*size));
-  *h_ptr = malloc(length*size);
-}
-
-static void default_allocmanagedfn(sunindextype length, size_t size, void** h_ptr, void** d_ptr)
-{
-  SUNDIALS_CUDA_VERIFY(cudaMallocManaged(d_ptr, length*size));
-  *h_ptr = *d_ptr;
-}
-
-static void default_freefn(sunindextype length, void* h_ptr, void* d_ptr)
-{
-  if (h_ptr) free(h_ptr);
-  if (d_ptr) cudaFree(d_ptr);
-}
-
-static void default_freemanagedfn(sunindextype length, void* h_ptr, void* d_ptr)
-{
-  if (d_ptr) cudaFree(d_ptr);
-}
-
 /*
  * Macro definitions
  */
 
-#define NVEC_CUDA_CONTENT(x) ((N_VectorContent_Cuda)(x->content))
-#define NVEC_CUDA_PRIVATE(x) ((N_PrivateVectorContent_Cuda)(NVEC_CUDA_CONTENT(x)->priv))
-#define NVEC_CUDA_MEMSIZE(x) (NVEC_CUDA_CONTENT(x)->length * sizeof(realtype))
-#define NVEC_CUDA_STREAM(x)  (NVEC_CUDA_CONTENT(x)->stream_exec_policy->stream())
+#define NVEC_CUDA_CONTENT(x)  ((N_VectorContent_Cuda)(x->content))
+#define NVEC_CUDA_PRIVATE(x)  ((N_PrivateVectorContent_Cuda)(NVEC_CUDA_CONTENT(x)->priv))
+#define NVEC_CUDA_MEMSIZE(x)  (NVEC_CUDA_CONTENT(x)->length * sizeof(realtype))
+#define NVEC_CUDA_MEMHELP(x)  (NVEC_CUDA_PRIVATE(x)->mem_helper)
+#define NVEC_CUDA_HBUFFER(x)  ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_host->ptr)
+#define NVEC_CUDA_DBUFFER(x)  ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_dev->ptr)
+#define NVEC_CUDA_STREAM(x)   (NVEC_CUDA_CONTENT(x)->stream_exec_policy->stream())
+
 
 /*
  * Private structure definition
@@ -73,15 +54,14 @@ static void default_freemanagedfn(sunindextype length, void* h_ptr, void* d_ptr)
 
 struct _N_PrivateVectorContent_Cuda
 {
-  booleantype use_managed_mem; /* indicates if the data pointers and buffer pointers are managed memory */
-  size_t      reduce_buffer_allocated_bytes; /* current size of the reduction buffer */
-  realtype*   reduce_buffer_dev;      /* device buffer used for reductions */
-  realtype*   reduce_buffer_host;     /* host buffer used for reductions */
-  // void*       (*userallocfn)(size_t); /* a user provided allocator (assumes managed mem) */
-  // void        (*userfreefn)(void*);   /* a user provided free function */
-  void (*userallocfn)(sunindextype,size_t,void**,void**);
-  void (*userfreefn)(sunindextype,void*,void*);
-  booleantype own_exec; /* indicates if the exec policy is owned by the vector */
+  booleantype     use_managed_mem;               /* indicates if the data pointers and buffer pointers are managed memory */
+  booleantype     own_exec;                      /* indicates if the exec policy is owned by the vector */
+  size_t          reduce_buffer_allocated_bytes; /* current size of the reduction buffer */
+  SUNMemory       reduce_buffer_dev;             /* device buffer used for reductions */
+  SUNMemory       reduce_buffer_host;            /* host buffer used for reductions */
+  void*           (*userallocfn)(size_t);        /* a user provided allocator (assumes managed mem) */
+  void            (*userfreefn)(void*);          /* a user provided free function */
+  SUNMemoryHelper mem_helper;                    /* memory helper object */
 };
 
 typedef struct _N_PrivateVectorContent_Cuda *N_PrivateVectorContent_Cuda;
@@ -97,6 +77,45 @@ static int CopyReductionBufferFromDevice(N_Vector v, size_t n = 1);
 static int GetKernelParameters(N_Vector v, booleantype reduction, size_t& grid, size_t& block,
                                size_t& shMemSize, cudaStream_t& stream, size_t n = 0);
 static void PostKernelLaunch();
+
+
+/*
+ * Private functions needed for N_VMakeWithManagedAllocator_Cuda
+ * backwards compatibility.
+ */
+
+/* DEPRECATION NOTICE: The 2 memory functions can be removed once
+   N_VMakeWithManagedAllocator_Cuda (deprecated) is removed in the
+   next major release. The userallocfn and userfreefn can also be
+   removed from the N_PrivateVectorContent_Cuda struct. */
+
+static SUNMemory SUNMemoryHelper_UserAlloc(SUNMemoryHelper helper,
+                                           size_t memsize,
+                                           SUNMemoryType mem_type)
+{
+  N_Vector v = (N_Vector) helper->content;
+  SUNMemory mem = SUNMemoryNewEmpty();
+
+  mem->type = SUNMEMTYPE_UVM;
+  mem->ptr  = NVEC_CUDA_PRIVATE(v)->userallocfn(memsize);
+  mem->own  = SUNTRUE;
+  if (mem->ptr == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_UserAlloc: user provided alloc failed\n");
+    free(mem);
+    return(NULL);
+  }
+
+  return(mem);
+}
+
+static void SUNMemoryHelper_UserDealloc(SUNMemoryHelper helper, SUNMemory mem)
+{
+  N_Vector v = (N_Vector) helper->content;
+  NVEC_CUDA_PRIVATE(v)->userfreefn(mem->ptr);
+  mem->ptr = NULL;
+}
+
 
 /* ----------------------------------------------------------------
  * Returns vector type ID. Used to identify vector implementation
@@ -166,26 +185,26 @@ N_Vector N_VNewEmpty_Cuda()
   if (v->content == NULL)
   {
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
 
   NVEC_CUDA_CONTENT(v)->priv = malloc(sizeof(_N_PrivateVectorContent_Cuda));
   if (NVEC_CUDA_CONTENT(v)->priv == NULL)
   {
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
 
   NVEC_CUDA_CONTENT(v)->length                        = 0;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
   NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = NULL;
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = NULL;
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = NULL;
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -202,15 +221,13 @@ N_Vector N_VNew_Cuda(sunindextype length)
   if (v == NULL) return(NULL);
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNTRUE;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
   NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = SUNMemoryHelper_Cuda();
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -219,8 +236,41 @@ N_Vector N_VNew_Cuda(sunindextype length)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VNew_Cuda: AllocateData returned nonzero\n");
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
+
+  return(v);
+}
+
+N_Vector N_VNewCustom_Cuda(sunindextype length, SUNMemoryHelper helper)
+{
+  N_Vector v;
+
+  v = NULL;
+  v = N_VNewEmpty_Cuda();
+  if (v == NULL) return(NULL);
+
+  NVEC_CUDA_CONTENT(v)->length                        = length;
+  NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
+  NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = helper;
+  NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
+  NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
+  NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
+  NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
+
+  if (AllocateData(v))
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in N_VNewCustom_Cuda: AllocateData returned nonzero\n");
+    N_VDestroy(v);
+    return(NULL);
+  }
+
+  NVEC_CUDA_PRIVATE(v)->use_managed_mem =
+    (NVEC_CUDA_CONTENT(v)->host_data->type == SUNMEMTYPE_UVM);
 
   return(v);
 }
@@ -238,15 +288,13 @@ N_Vector N_VNewManaged_Cuda(sunindextype length)
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNTRUE;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
   NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = SUNMemoryHelper_Cuda();
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -255,7 +303,7 @@ N_Vector N_VNewManaged_Cuda(sunindextype length)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VNewManaged_Cuda: AllocateData returned nonzero\n");
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
 
   return(v);
@@ -265,20 +313,20 @@ N_Vector N_VMake_Cuda(sunindextype length, realtype *h_vdata, realtype *d_vdata)
 {
   N_Vector v;
 
+  if (h_vdata == NULL || d_vdata == NULL) return(NULL);
+
   v = NULL;
   v = N_VNewEmpty_Cuda();
   if (v == NULL) return(NULL);
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
-  NVEC_CUDA_CONTENT(v)->host_data                     = h_vdata;
-  NVEC_CUDA_CONTENT(v)->device_data                   = d_vdata;
+  NVEC_CUDA_CONTENT(v)->host_data                     = SUNMemoryHelper_Wrap(h_vdata, SUNMEMTYPE_HOST);
+  NVEC_CUDA_CONTENT(v)->device_data                   = SUNMemoryHelper_Wrap(d_vdata, SUNMEMTYPE_DEVICE);
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = SUNMemoryHelper_Cuda();
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -290,6 +338,8 @@ N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
 {
   N_Vector v;
 
+  if (vdata == NULL) return(NULL);
+
   v = NULL;
   v = N_VNewEmpty_Cuda();
   if (v == NULL) return(NULL);
@@ -299,15 +349,13 @@ N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
-  NVEC_CUDA_CONTENT(v)->host_data                     = vdata;
-  NVEC_CUDA_CONTENT(v)->device_data                   = vdata;
+  NVEC_CUDA_CONTENT(v)->host_data                     = SUNMemoryHelper_Wrap(vdata, SUNMEMTYPE_UVM);
+  NVEC_CUDA_CONTENT(v)->device_data                   = SUNMemoryHelper_Alias(NVEC_CUDA_CONTENT(v)->host_data);
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = SUNMemoryHelper_Cuda();
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -330,57 +378,32 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNTRUE;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
   NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
   NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = NVEC_CUDA_PRIVATE(v)->mem_helper;
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNTRUE;
-  // NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
-  // NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = default_allocmanagedfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = default_freemanagedfn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
+  NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
+  NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
+  NVEC_CUDA_PRIVATE(v)->mem_helper->content           = v;
+  NVEC_CUDA_PRIVATE(v)->mem_helper->ops->alloc        = SUNMemoryHelper_UserAlloc;
+  NVEC_CUDA_PRIVATE(v)->mem_helper->ops->dealloc      = SUNMemoryHelper_UserDealloc;
 
   if (AllocateData(v))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VMakeWithManagedAllocator_Cuda: AllocateData returned nonzero\n");
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
 
   return(v);
 }
 
-N_Vector N_VMakeWithAllocator_Cuda(sunindextype length, realtype* h_vdata, realtype* d_vdata,
-                                   void (*allocfn)(sunindextype,size_t,void**,void**),
-                                   void (*freefn)(sunindextype,void*,void*))
-{
-  N_Vector v;
-
-  v = NULL;
-  v = N_VNewEmpty_Cuda();
-  if (v == NULL) return(NULL);
-
-  NVEC_CUDA_CONTENT(v)->length                        = length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
-  NVEC_CUDA_CONTENT(v)->host_data                     = h_vdata;
-  NVEC_CUDA_CONTENT(v)->device_data                   = d_vdata;
-  NVEC_CUDA_CONTENT(v)->stream_exec_policy            = new CudaThreadDirectExecPolicy(256);
-  NVEC_CUDA_CONTENT(v)->reduce_exec_policy            = new CudaBlockReduceExecPolicy(256);
-  NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
-  NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
-  NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
-  NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
-  NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
-
-  return(v);
-}
 
 /* -----------------------------------------------------------------
  * Function to return the global length of the vector.
@@ -396,7 +419,10 @@ sunindextype N_VGetLength_Cuda(N_Vector x)
 
 realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
 {
-  return NVEC_CUDA_CONTENT(x)->host_data;
+  if (NVEC_CUDA_CONTENT(x)->host_data == NULL)
+    return(NULL);
+  else
+    return ((realtype*) NVEC_CUDA_CONTENT(x)->host_data->ptr);
 }
 
 /* ----------------------------------------------------------------------------
@@ -405,7 +431,10 @@ realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
 
 realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
 {
-  return NVEC_CUDA_CONTENT(x)->device_data;
+  if (NVEC_CUDA_CONTENT(x)->device_data == NULL)
+    return(NULL);
+  else
+    return ((realtype*) NVEC_CUDA_CONTENT(x)->device_data->ptr);
 }
 
 /* ----------------------------------------------------------------------------
@@ -421,7 +450,7 @@ int N_VSetKernelExecPolicy_Cuda(N_Vector x,
                                 SUNCudaExecPolicy* reduce_exec_policy)
 {
   if (x == NULL || stream_exec_policy == NULL || reduce_exec_policy == NULL)
-    return -1;
+    return(-1);
 
   if (NVEC_CUDA_PRIVATE(x)->own_exec)
   {
@@ -433,7 +462,7 @@ int N_VSetKernelExecPolicy_Cuda(N_Vector x,
   NVEC_CUDA_CONTENT(x)->reduce_exec_policy = reduce_exec_policy;
   NVEC_CUDA_PRIVATE(x)->own_exec = SUNFALSE;
 
-  return 0;
+  return(0);
 }
 
 /*
@@ -459,26 +488,21 @@ void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream)
 
 void N_VCopyToDevice_Cuda(N_Vector x)
 {
-  cudaError_t err;
+  int retval;
 
-  /* If the host and device pointers are the same, then we don't need
-     to do a copy (this happens in the managed memory case), but we
-     still need to synchronize the device to adhere to the unified
-     memory access rules. */
-  if (NVEC_CUDA_PRIVATE(x)->use_managed_mem)
+  retval = SUNMemoryHelper_CopyAsync(NVEC_CUDA_MEMHELP(x),
+                                     NVEC_CUDA_CONTENT(x)->device_data,
+                                     NVEC_CUDA_CONTENT(x)->host_data,
+                                     NVEC_CUDA_MEMSIZE(x),
+                                     (void*) NVEC_CUDA_STREAM(x));
+
+  if (retval)
   {
-    err = cudaStreamSynchronize(NVEC_CUDA_STREAM(x));
-    SUNDIALS_CUDA_VERIFY(err);
+    SUNDIALS_DEBUG_PRINT("ERROR in N_VCopyToDevice_Cuda: SUNMemoryHelper_CopyAsync returned nonzero\n");
   }
-  else
-  {
-    err = cudaMemcpyAsync(NVEC_CUDA_CONTENT(x)->device_data,
-                          NVEC_CUDA_CONTENT(x)->host_data,
-                          NVEC_CUDA_MEMSIZE(x),
-                          cudaMemcpyHostToDevice,
-                          NVEC_CUDA_STREAM(x));
-    SUNDIALS_CUDA_VERIFY(err);
-  }
+
+  /* we synchronize with respect to the host, but only in this stream */
+  SUNDIALS_CUDA_VERIFY(cudaStreamSynchronize(*NVEC_CUDA_STREAM(x)));
 }
 
 /* ----------------------------------------------------------------------------
@@ -487,26 +511,21 @@ void N_VCopyToDevice_Cuda(N_Vector x)
 
 void N_VCopyFromDevice_Cuda(N_Vector x)
 {
-  cudaError_t err;
+  int retval;
 
-  /* If the host and device pointers are the same, then we don't need
-     to do a copy (this happens in the managed memory case), but we
-     still need to synchronize the device to adhere to the unified
-     memory access rules. */
-  if (NVEC_CUDA_PRIVATE(x)->use_managed_mem)
+  retval = SUNMemoryHelper_CopyAsync(NVEC_CUDA_MEMHELP(x),
+                                     NVEC_CUDA_CONTENT(x)->host_data,
+                                     NVEC_CUDA_CONTENT(x)->device_data,
+                                     NVEC_CUDA_MEMSIZE(x),
+                                     (void*) NVEC_CUDA_STREAM(x));
+
+  if (retval)
   {
-    err = cudaStreamSynchronize(NVEC_CUDA_STREAM(x));
-    SUNDIALS_CUDA_VERIFY(err);
+    SUNDIALS_DEBUG_PRINT("ERROR in N_VCopyFromDevice_Cuda: SUNMemoryHelper_CopyAsync returned nonzero\n");
   }
-  else
-  {
-    err = cudaMemcpyAsync(NVEC_CUDA_CONTENT(x)->host_data,
-                          NVEC_CUDA_CONTENT(x)->device_data,
-                          NVEC_CUDA_MEMSIZE(x),
-                          cudaMemcpyDeviceToHost,
-                          NVEC_CUDA_STREAM(x));
-    SUNDIALS_CUDA_VERIFY(err);
-  }
+
+  /* we synchronize with respect to the host, but only in this stream */
+  SUNDIALS_CUDA_VERIFY(cudaStreamSynchronize(*NVEC_CUDA_STREAM(x)));
 }
 
 /* ----------------------------------------------------------------------------
@@ -528,11 +547,11 @@ void N_VPrintFile_Cuda(N_Vector x, FILE *outfile)
 
   for (i = 0; i < NVEC_CUDA_CONTENT(x)->length; i++) {
 #if defined(SUNDIALS_EXTENDED_PRECISION)
-    fprintf(outfile, "%35.32Lg\n", NVEC_CUDA_CONTENT(x)->host_data[i]);
+    fprintf(outfile, "%35.32Lg\n", N_VGetHostArrayPointer_Cuda(x)[i]);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-    fprintf(outfile, "%19.16g\n", NVEC_CUDA_CONTENT(x)->host_data[i]);
+    fprintf(outfile, "%19.16g\n", N_VGetHostArrayPointer_Cuda(x)[i]);
 #else
-    fprintf(outfile, "%11.8g\n", NVEC_CUDA_CONTENT(x)->host_data[i]);
+    fprintf(outfile, "%11.8g\n", N_VGetHostArrayPointer_Cuda(x)[i]);
 #endif
   }
   fprintf(outfile, "\n");
@@ -563,13 +582,11 @@ N_Vector N_VCloneEmpty_Cuda(N_Vector w)
 
   /* Set content */
   NVEC_CUDA_CONTENT(v)->length                        = NVEC_CUDA_CONTENT(w)->length;
-  NVEC_CUDA_CONTENT(v)->own_data                      = SUNFALSE;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
   NVEC_CUDA_CONTENT(v)->device_data                   = NULL;
+  NVEC_CUDA_PRIVATE(v)->mem_helper                    = SUNMemoryHelper_Clone(NVEC_CUDA_MEMHELP(w));
   NVEC_CUDA_PRIVATE(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = NVEC_CUDA_PRIVATE(w)->use_managed_mem;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NVEC_CUDA_PRIVATE(w)->userallocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NVEC_CUDA_PRIVATE(w)->userfreefn;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -587,12 +604,11 @@ N_Vector N_VClone_Cuda(N_Vector w)
   NVEC_CUDA_CONTENT(v)->stream_exec_policy = NVEC_CUDA_CONTENT(w)->stream_exec_policy->clone();
   NVEC_CUDA_CONTENT(v)->reduce_exec_policy = NVEC_CUDA_CONTENT(w)->reduce_exec_policy->clone();
 
-  NVEC_CUDA_CONTENT(v)->own_data = SUNTRUE;
   if (AllocateData(v))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VClone_Cuda: AllocateData returned nonzero\n");
     N_VDestroy(v);
-    return NULL;
+    return(NULL);
   }
 
   return(v);
@@ -601,9 +617,12 @@ N_Vector N_VClone_Cuda(N_Vector w)
 
 void N_VDestroy_Cuda(N_Vector v)
 {
+  N_VectorContent_Cuda vc;
+  N_PrivateVectorContent_Cuda vcp;
+
   if (v == NULL) return;
 
-  N_VectorContent_Cuda vc = NVEC_CUDA_CONTENT(v);
+  vc = NVEC_CUDA_CONTENT(v);
   if (vc == NULL)
   {
     free(v);
@@ -611,32 +630,22 @@ void N_VDestroy_Cuda(N_Vector v)
     return;
   }
 
-  N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
-
-  /* free items in content */
-  if (vc->own_data)
+  vcp = (N_PrivateVectorContent_Cuda) vc->priv;
+  if (vcp == NULL)
   {
-    if (vcp != NULL)
-    {
-      vcp->userfreefn(vc->length, vc->host_data, vc->device_data);
-    }
-    // if (vcp != NULL && vcp->userfreefn)
-    // {
-    //   vcp->userfreefn(vc->device_data);
-    //   vc->device_data = NULL;
-    //   vc->host_data = NULL;
-    // }
-    // else
-    // {
-    //   if (vcp != NULL && !vcp->use_managed_mem) free(vc->host_data);
-    //   SUNDIALS_CUDA_VERIFY(cudaFree(vc->device_data));
-    //   vc->device_data = NULL;
-    //   vc->host_data = NULL;
-    // }
+    free(v);
+    v = NULL;
+    return;
   }
 
+  /* free items in content */
+  SUNMemoryHelper_Dealloc(NVEC_CUDA_MEMHELP(v), vc->host_data);
+  vc->host_data   = NULL;
+  SUNMemoryHelper_Dealloc(NVEC_CUDA_MEMHELP(v), vc->device_data);
+  vc->device_data = NULL;
+
   /* free execution policies */
-  if (vcp != NULL && vcp->own_exec)
+  if (vcp->own_exec)
   {
     delete vc->stream_exec_policy;
     vc->stream_exec_policy = NULL;
@@ -646,6 +655,10 @@ void N_VDestroy_Cuda(N_Vector v)
 
   /* free reduction buffer */
   FreeReductionBuffer(v);
+
+  /* free memory helper */
+  SUNMemoryHelper_Destroy(vcp->mem_helper);
+  vcp->mem_helper = NULL;
 
   /* free private content struct */
   if (vcp) free(vcp);
@@ -684,7 +697,7 @@ void N_VConst_Cuda(realtype a, N_Vector X)
   setConstKernel<<<grid, block, shMemSize, stream>>>
   (
     a,
-    NVEC_CUDA_CONTENT(X)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -699,10 +712,10 @@ void N_VLinearSum_Cuda(realtype a, N_Vector X, realtype b, N_Vector Y, N_Vector 
   linearSumKernel<<<grid, block, shMemSize, stream>>>
   (
     a,
-    NVEC_CUDA_CONTENT(X)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
     b,
-    NVEC_CUDA_CONTENT(Y)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(Y),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -716,9 +729,9 @@ void N_VProd_Cuda(N_Vector X, N_Vector Y, N_Vector Z)
   GetKernelParameters(X, false, grid, block, shMemSize, stream);
   prodKernel<<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Y)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Y),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -732,9 +745,9 @@ void N_VDiv_Cuda(N_Vector X, N_Vector Y, N_Vector Z)
   GetKernelParameters(X, false, grid, block, shMemSize, stream);
   divKernel<<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Y)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Y),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -749,8 +762,8 @@ void N_VScale_Cuda(realtype a, N_Vector X, N_Vector Z)
   scaleKernel<<<grid, block, shMemSize, stream>>>
   (
     a,
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -764,8 +777,8 @@ void N_VAbs_Cuda(N_Vector X, N_Vector Z)
   GetKernelParameters(X, false, grid, block, shMemSize, stream);
   absKernel<<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -779,8 +792,8 @@ void N_VInv_Cuda(N_Vector X, N_Vector Z)
   GetKernelParameters(X, false, grid, block, shMemSize, stream);
   invKernel<<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -795,8 +808,8 @@ void N_VAddConst_Cuda(N_Vector X, realtype b, N_Vector Z)
   addConstKernel<<<grid, block, shMemSize, stream>>>
   (
     b,
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -815,16 +828,16 @@ realtype N_VDotProd_Cuda(N_Vector X, N_Vector Y)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   dotProdKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Y)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Y),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -842,15 +855,15 @@ realtype N_VMaxNorm_Cuda(N_Vector X)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   maxNormKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Finish reduction on CPU if there are less than two blocks of data left.
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -868,16 +881,16 @@ realtype N_VWSqrSumLocal_Cuda(N_Vector X, N_Vector W)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   wL2NormSquareKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(W)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(W),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -901,17 +914,17 @@ realtype N_VWSqrSumMaskLocal_Cuda(N_Vector X, N_Vector W, N_Vector Id)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   wL2NormSquareMaskKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(W)->device_data,
-    NVEC_CUDA_CONTENT(Id)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(W),
+    N_VGetDeviceArrayPointer_Cuda(Id),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -938,15 +951,15 @@ realtype N_VMin_Cuda(N_Vector X)
   findMinKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     maxVal,
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -970,15 +983,15 @@ realtype N_VL1Norm_Cuda(N_Vector X)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   L1NormKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return gpu_result;
 }
@@ -992,8 +1005,8 @@ void N_VCompare_Cuda(realtype c, N_Vector X, N_Vector Z)
   compareKernel<<<grid, block, shMemSize, stream>>>
   (
     c,
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
@@ -1012,16 +1025,16 @@ booleantype N_VInvTest_Cuda(N_Vector X, N_Vector Z)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   invTestKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(Z)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(Z),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return (gpu_result < HALF);
 }
@@ -1039,17 +1052,17 @@ booleantype N_VConstrMask_Cuda(N_Vector C, N_Vector X, N_Vector M)
   GetKernelParameters(X, true, grid, block, shMemSize, stream);
   constrMaskKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
-    NVEC_CUDA_CONTENT(C)->device_data,
-    NVEC_CUDA_CONTENT(X)->device_data,
-    NVEC_CUDA_CONTENT(M)->device_data,
-    NVEC_CUDA_PRIVATE(X)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(C),
+    N_VGetDeviceArrayPointer_Cuda(X),
+    N_VGetDeviceArrayPointer_Cuda(M),
+    NVEC_CUDA_DBUFFER(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(X)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
 
   return (gpu_result < HALF);
 }
@@ -1070,16 +1083,16 @@ realtype N_VMinQuotient_Cuda(N_Vector num, N_Vector denom)
   minQuotientKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     maxVal,
-    NVEC_CUDA_CONTENT(num)->device_data,
-    NVEC_CUDA_CONTENT(denom)->device_data,
-    NVEC_CUDA_PRIVATE(num)->reduce_buffer_dev,
+    N_VGetDeviceArrayPointer_Cuda(num),
+    N_VGetDeviceArrayPointer_Cuda(denom),
+    NVEC_CUDA_DBUFFER(num),
     NVEC_CUDA_CONTENT(num)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(num);
-  realtype gpu_result = NVEC_CUDA_PRIVATE(num)->reduce_buffer_host[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFER(num)[0];
 
   return gpu_result;
 }
@@ -1097,33 +1110,33 @@ int N_VLinearCombination_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector Z)
   // Copy c array to device
   realtype* d_c;
   err = cudaMalloc((void**) &d_c, nvec*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_c, c, nvec*sizeof(realtype), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters and launch
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(X[0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(X[0], false, grid, block, shMemSize, stream)) return(-1);
   linearCombinationKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
     d_c,
     d_Xd,
-    NVEC_CUDA_CONTENT(Z)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(Z),
     NVEC_CUDA_CONTENT(Z)->length
   );
   PostKernelLaunch();
@@ -1133,11 +1146,11 @@ int N_VLinearCombination_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector Z)
 
   // Free device arrays
   err = cudaFree(d_c);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 int N_VScaleAddMulti_Cuda(int nvec, realtype* c, N_Vector X, N_Vector* Y,
@@ -1148,42 +1161,42 @@ int N_VScaleAddMulti_Cuda(int nvec, realtype* c, N_Vector X, N_Vector* Y,
   // Copy c array to device
   realtype* d_c;
   err = cudaMalloc((void**) &d_c, nvec*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_c, c, nvec*sizeof(realtype), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Create array of device pointers on host
   realtype** h_Yd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Yd[i] = NVEC_CUDA_CONTENT(Y[i])->device_data;
+    h_Yd[i] = N_VGetDeviceArrayPointer_Cuda(Y[i]);
 
   realtype** h_Zd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Zd[i] = NVEC_CUDA_CONTENT(Z[i])->device_data;
+    h_Zd[i] = N_VGetDeviceArrayPointer_Cuda(Z[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Yd;
   err = cudaMalloc((void**) &d_Yd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Yd, h_Yd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(X, false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(X, false, grid, block, shMemSize, stream)) return(-1);
   scaleAddMultiKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
     d_c,
-    NVEC_CUDA_CONTENT(X)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
     d_Yd,
     d_Zd,
     NVEC_CUDA_CONTENT(X)->length
@@ -1196,13 +1209,13 @@ int N_VScaleAddMulti_Cuda(int nvec, realtype* c, N_Vector X, N_Vector* Y,
 
   // Free device arrays
   err = cudaFree(d_c);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Yd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 int N_VDotProdMulti_Cuda(int nvec, N_Vector X, N_Vector* Y, realtype* dots)
@@ -1212,33 +1225,33 @@ int N_VDotProdMulti_Cuda(int nvec, N_Vector X, N_Vector* Y, realtype* dots)
   // Create array of device pointers on host
   realtype** h_Yd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Yd[i] = NVEC_CUDA_CONTENT(Y[i])->device_data;
+    h_Yd[i] = N_VGetDeviceArrayPointer_Cuda(Y[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Yd;
   err = cudaMalloc((void**) &d_Yd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Yd, h_Yd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(X, false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(X, false, grid, block, shMemSize, stream)) return(-1);
   grid = nvec;
 
   // Allocate reduction buffer on device
   realtype* d_buff;
   err = cudaMalloc((void**) &d_buff, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemsetAsync(d_buff, 0, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   dotProdMultiKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     nvec,
-    NVEC_CUDA_CONTENT(X)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(X),
     d_Yd,
     d_buff,
     NVEC_CUDA_CONTENT(X)->length
@@ -1247,18 +1260,18 @@ int N_VDotProdMulti_Cuda(int nvec, N_Vector X, N_Vector* Y, realtype* dots)
 
   // Copy GPU result to the cpu.
   err = cudaMemcpy(dots, d_buff, grid*sizeof(realtype), cudaMemcpyDeviceToHost);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Free host array
   delete[] h_Yd;
 
   // Free device arrays
   err = cudaFree(d_Yd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_buff);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 
@@ -1277,40 +1290,40 @@ int N_VLinearSumVectorArray_Cuda(int nvec, realtype a, N_Vector* X, realtype b,
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
 
   realtype** h_Yd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Yd[i] = NVEC_CUDA_CONTENT(Y[i])->device_data;
+    h_Yd[i] = N_VGetDeviceArrayPointer_Cuda(Y[i]);
 
   realtype** h_Zd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Zd[i] = NVEC_CUDA_CONTENT(Z[i])->device_data;
+    h_Zd[i] = N_VGetDeviceArrayPointer_Cuda(Z[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Yd;
   err = cudaMalloc((void**) &d_Yd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Yd, h_Yd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return(-1);
   linearSumVectorArrayKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
@@ -1330,13 +1343,13 @@ int N_VLinearSumVectorArray_Cuda(int nvec, realtype a, N_Vector* X, realtype b,
 
   // Free device arrays
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Yd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 
@@ -1347,37 +1360,37 @@ int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
   // Copy c array to device
   realtype* d_c;
   err = cudaMalloc((void**) &d_c, nvec*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_c, c, nvec*sizeof(realtype), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
 
   realtype** h_Zd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Zd[i] = NVEC_CUDA_CONTENT(Z[i])->device_data;
+    h_Zd[i] = N_VGetDeviceArrayPointer_Cuda(Z[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return(-1);
   scaleVectorArrayKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
@@ -1394,13 +1407,13 @@ int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
 
   // Free device arrays
   err = cudaFree(d_c);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 
@@ -1411,20 +1424,20 @@ int N_VConstVectorArray_Cuda(int nvec, realtype c, N_Vector* Z)
   // Create array of device pointers on host
   realtype** h_Zd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Zd[i] = NVEC_CUDA_CONTENT(Z[i])->device_data;
+    h_Zd[i] = N_VGetDeviceArrayPointer_Cuda(Z[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return(-1);
   constVectorArrayKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
@@ -1439,9 +1452,9 @@ int N_VConstVectorArray_Cuda(int nvec, realtype c, N_Vector* Z)
 
   // Free device arrays
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
@@ -1452,37 +1465,37 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
   realtype** h_Wd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Wd[i] = NVEC_CUDA_CONTENT(W[i])->device_data;
+    h_Wd[i] = N_VGetDeviceArrayPointer_Cuda(W[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Wd;
   err = cudaMalloc((void**) &d_Wd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Wd, h_Wd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return(-1);
   grid = nvec;
 
   // Allocate reduction buffer on device
   realtype* d_buff;
   err = cudaMalloc((void**) &d_buff, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemsetAsync(d_buff, 0, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   wL2NormSquareVectorArrayKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
@@ -1496,7 +1509,7 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
 
   // Copy GPU result to the cpu.
   err = cudaMemcpy(norms, d_buff, grid*sizeof(realtype), cudaMemcpyDeviceToHost);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Finish computation
   for (int k=0; k<nvec; ++k)
@@ -1508,13 +1521,13 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
 
   // Free device arrays
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Wd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_buff);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
@@ -1525,45 +1538,45 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
 
   realtype** h_Wd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Wd[i] = NVEC_CUDA_CONTENT(W[i])->device_data;
+    h_Wd[i] = N_VGetDeviceArrayPointer_Cuda(W[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Wd;
   err = cudaMalloc((void**) &d_Wd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Wd, h_Wd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return(-1);
   grid = nvec;
 
   // Allocate reduction buffer on device
   realtype* d_buff;
   err = cudaMalloc((void**) &d_buff, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemsetAsync(d_buff, 0, grid*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   wL2NormSquareMaskVectorArrayKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     nvec,
     d_Xd,
     d_Wd,
-    NVEC_CUDA_CONTENT(id)->device_data,
+    N_VGetDeviceArrayPointer_Cuda(id),
     d_buff,
     NVEC_CUDA_CONTENT(X[0])->length
   );
@@ -1571,7 +1584,7 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
 
   // Copy GPU result to the cpu.
   err = cudaMemcpy(norms, d_buff, grid*sizeof(realtype), cudaMemcpyDeviceToHost);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Finish computation
   for (int k=0; k<nvec; ++k)
@@ -1583,13 +1596,13 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
 
   // Free device arrays
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Wd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_buff);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 
@@ -1601,49 +1614,49 @@ int N_VScaleAddMultiVectorArray_Cuda(int nvec, int nsum, realtype* c,
   // Copy c array to device
   realtype* d_c;
   err = cudaMalloc((void**) &d_c, nsum*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_c, c, nsum*sizeof(realtype), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Xd[i] = NVEC_CUDA_CONTENT(X[i])->device_data;
+    h_Xd[i] = N_VGetDeviceArrayPointer_Cuda(X[i]);
 
   realtype** h_Yd = new realtype*[nsum*nvec];
   for (int j=0; j<nvec; j++)
     for (int i=0; i<nsum; i++)
-      h_Yd[j*nsum+i] = NVEC_CUDA_CONTENT(Y[i][j])->device_data;
+      h_Yd[j*nsum+i] = N_VGetDeviceArrayPointer_Cuda(Y[i][j]);
 
   realtype** h_Zd = new realtype*[nsum*nvec];
   for (int j=0; j<nvec; j++)
     for (int i=0; i<nsum; i++)
-      h_Zd[j*nsum+i] = NVEC_CUDA_CONTENT(Z[i][j])->device_data;
+      h_Zd[j*nsum+i] = N_VGetDeviceArrayPointer_Cuda(Z[i][j]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Yd;
   err = cudaMalloc((void**) &d_Yd, nsum*nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Yd, h_Yd, nsum*nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nsum*nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nsum*nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(Z[0][0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(Z[0][0], false, grid, block, shMemSize, stream)) return(-1);
   scaleAddMultiVectorArrayKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
@@ -1663,15 +1676,15 @@ int N_VScaleAddMultiVectorArray_Cuda(int nvec, int nsum, realtype* c,
 
   // Free device arrays
   err = cudaFree(d_c);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Yd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
-  return 0;
+  return(0);
 }
 
 
@@ -1683,38 +1696,38 @@ int N_VLinearCombinationVectorArray_Cuda(int nvec, int nsum, realtype* c,
   // Copy c array to device
   realtype* d_c;
   err = cudaMalloc((void**) &d_c, nsum*sizeof(realtype));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_c, c, nsum*sizeof(realtype), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Create array of device pointers on host
   realtype** h_Xd = new realtype*[nsum*nvec];
   for (int j=0; j<nvec; j++)
     for (int i=0; i<nsum; i++)
-      h_Xd[j*nsum+i] = NVEC_CUDA_CONTENT(X[i][j])->device_data;
+      h_Xd[j*nsum+i] = N_VGetDeviceArrayPointer_Cuda(X[i][j]);
 
   realtype** h_Zd = new realtype*[nvec];
   for (int i=0; i<nvec; i++)
-    h_Zd[i] = NVEC_CUDA_CONTENT(Z[i])->device_data;
+    h_Zd[i] = N_VGetDeviceArrayPointer_Cuda(Z[i]);
 
   // Copy array of device pointers to device from host
   realtype** d_Xd;
   err = cudaMalloc((void**) &d_Xd, nsum*nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Xd, h_Xd, nsum*nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   realtype** d_Zd;
   err = cudaMalloc((void**) &d_Zd, nvec*sizeof(realtype*));
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaMemcpy(d_Zd, h_Zd, nvec*sizeof(realtype*), cudaMemcpyHostToDevice);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return -1;
+  if (GetKernelParameters(Z[0], false, grid, block, shMemSize, stream)) return(-1);
   linearCombinationVectorArrayKernel<<<grid, block, shMemSize, stream>>>
   (
     nvec,
@@ -1732,11 +1745,11 @@ int N_VLinearCombinationVectorArray_Cuda(int nvec, int nsum, realtype* c,
 
   // Free device arrays
   err = cudaFree(d_c);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Xd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
   err = cudaFree(d_Zd);
-  if (!SUNDIALS_CUDA_VERIFY(err)) return -1;
+  if (!SUNDIALS_CUDA_VERIFY(err)) return(-1);
 
   return cudaGetLastError();
 }
@@ -1978,49 +1991,45 @@ int N_VEnableLinearCombinationVectorArray_Cuda(N_Vector v, booleantype tf)
 
 int AllocateData(N_Vector v)
 {
-  cudaError_t err;
-
   N_VectorContent_Cuda vc = NVEC_CUDA_CONTENT(v);
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
 
-  vcp->userallocfn(NVEC_CUDA_CONTENT(v)->length,
-                   sizeof(realtype),
-                   (void**) &NVEC_CUDA_CONTENT(v)->host_data,
-                   (void**) &NVEC_CUDA_CONTENT(v)->device_data);
+  if (vcp->use_managed_mem)
+  {
+    vc->device_data = SUNMemoryHelper_Alloc(NVEC_CUDA_MEMHELP(v),
+                                            NVEC_CUDA_MEMSIZE(v),
+                                            SUNMEMTYPE_UVM);
+    vc->host_data = SUNMemoryHelper_Alias(vc->device_data);
+    if (vc->device_data == NULL || vc->host_data == NULL)
+    {
+      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: SUNMemoryHelper_Alloc failed for UM\n");
+      return(-1);
+    }
+  }
+  else
+  {
+    vc->host_data = SUNMemoryHelper_Alloc(NVEC_CUDA_MEMHELP(v),
+                                          NVEC_CUDA_MEMSIZE(v),
+                                          SUNMEMTYPE_HOST);
 
-  // if (vcp->userallocfn)
-  // {
-  //   /* We assume managed memory when a custom allocator is provided */
-  //   vc->device_data =  (realtype *) vcp->userallocfn(NVEC_CUDA_MEMSIZE(v));
-  //   vc->host_data = vc->device_data;
-  //   if (vc->device_data == NULL)
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: user provided allocator function failed\n");
-  //     return -1;
-  //   }
-  // }
-  // else if (vcp->use_managed_mem)
-  // {
-  //   err = cudaMallocManaged((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
-  //   vc->host_data = vc->device_data;
-  //   if (!SUNDIALS_CUDA_VERIFY(err))
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMallocManaged failed\n");
-  //     return -1;
-  //   }
-  // }
-  // else
-  // {
-  //   vc->host_data = (realtype*) malloc(NVEC_CUDA_MEMSIZE(v));
-  //   err = cudaMalloc((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
-  //   if (!SUNDIALS_CUDA_VERIFY(err))
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: cudaMalloc failed\n");
-  //     return -1;
-  //   }
-  // }
+    if (vc->host_data == NULL)
+    {
+      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: SUNMemoryHelper_Alloc failed for host\n");
+      return(-1);
+    }
 
-  return 0;
+    vc->device_data = SUNMemoryHelper_Alloc(NVEC_CUDA_MEMHELP(v),
+                                            NVEC_CUDA_MEMSIZE(v),
+                                            SUNMEMTYPE_DEVICE);
+
+    if (vc->host_data == NULL)
+    {
+      SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: SUNMemoryHelper_Alloc failed for device\n");
+      return(-1);
+    }
+  }
+
+  return(0);
 }
 
 /*
@@ -2032,152 +2041,93 @@ int AllocateData(N_Vector v)
  */
 int InitializeReductionBuffer(N_Vector v, const realtype value)
 {
-  cudaError_t err;
+  int retval;
   size_t bytes = sizeof(realtype);
+  booleantype need_to_allocate = SUNFALSE;
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
+  SUNMemory value_mem = SUNMemoryHelper_Wrap((void*) &value, SUNMEMTYPE_HOST);
 
   /* we allocate if the existing reduction buffer is not large enough */
   if (vcp->reduce_buffer_allocated_bytes < bytes)
   {
-    if (vcp->reduce_buffer_allocated_bytes) FreeReductionBuffer(v);
+    FreeReductionBuffer(v);
+    need_to_allocate = SUNTRUE;
   }
-  else
+
+  if (need_to_allocate)
   {
-    err = cudaMemcpyAsync(vcp->reduce_buffer_dev, &value,
-                          bytes, cudaMemcpyHostToDevice, NVEC_CUDA_STREAM(v));
-    if (!SUNDIALS_CUDA_VERIFY(err))
+    vcp->reduce_buffer_host = SUNMemoryHelper_Alloc(NVEC_CUDA_MEMHELP(v), bytes,
+                                                    SUNMEMTYPE_PINNED);
+    if (vcp->reduce_buffer_host == NULL)
     {
-      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: cudaMemcpyAsync failed\n");
-      return -1;
+      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: SUNMemoryHelper_Alloc failed for host memory\n");
+      return(-1);
     }
-    return 0;
+    vcp->reduce_buffer_dev = SUNMemoryHelper_Alloc(NVEC_CUDA_MEMHELP(v), bytes,
+                                                   SUNMEMTYPE_DEVICE);
+    if (vcp->reduce_buffer_dev == NULL)
+    {
+      SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: SUNMemoryHelper_Alloc failed for device memory\n");
+      return(-1);
+    }
   }
 
-
-  vcp->userallocfn(bytes,
-                   sizeof(realtype),
-                   (void**) &vcp->reduce_buffer_host,
-                   (void**) &vcp->reduce_buffer_dev);
-
-  // if (vcp->userallocfn != nullptr)
-  // {
-  //   vcp->reduce_buffer_dev = (realtype*) vcp->userallocfn(bytes);
-  //   if (vcp->reduce_buffer_dev == NULL)
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with user allocator\n");
-  //     return -1;
-  //   }
-  //   vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
-  // }
-  // else if (vcp->use_managed_mem)
-  // {
-  //   err = cudaMallocManaged((void**) &vcp->reduce_buffer_dev, bytes);
-  //   if (!SUNDIALS_CUDA_VERIFY(err))
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMallocManaged\n");
-  //     return -1;
-  //   }
-  //   vcp->reduce_buffer_host = vcp->reduce_buffer_dev;
-  // }
-  // else
-  // {
-  //   vcp->reduce_buffer_host = (realtype *) malloc(bytes);
-  //   if (vcp->reduce_buffer_host == NULL)
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate host data with malloc\n");
-  //     return -1;
-  //   }
-  //   err = cudaMalloc((void**) &vcp->reduce_buffer_dev, bytes);
-  //   if (!SUNDIALS_CUDA_VERIFY(err))
-  //   {
-  //     SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate device data with cudaMalloc\n");
-  //     return -1;
-  //   }
-  // }
-
+  /* store the size of the buffer */
   vcp->reduce_buffer_allocated_bytes = bytes;
 
-  err = cudaMemcpyAsync(vcp->reduce_buffer_dev, &value,
-                        bytes, cudaMemcpyHostToDevice, NVEC_CUDA_STREAM(v));
-  if (!SUNDIALS_CUDA_VERIFY(err))
+  /* initialize the memory with the value */
+  retval = SUNMemoryHelper_CopyAsync(NVEC_CUDA_MEMHELP(v),
+                                     vcp->reduce_buffer_dev,
+                                     value_mem,
+                                     bytes,
+                                     (void*) NVEC_CUDA_STREAM(v));
+
+  if (retval != 0)
   {
-    SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: could not allocate host data\n");
-    return -1;
+    SUNDIALS_DEBUG_PRINT("ERROR in InitializeReductionBuffer: SUNMemoryHelper_CopyAsync failed\n");
   }
 
-  return 0;
+  SUNMemoryHelper_Dealloc(NVEC_CUDA_MEMHELP(v), value_mem);
+  return(retval);
 }
 
 /* Free the reduction buffer
  */
 void FreeReductionBuffer(N_Vector v)
 {
-  cudaError_t err;
-
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
+
   if (vcp == NULL) return;
 
+  if (vcp->reduce_buffer_dev != NULL)
+    SUNMemoryHelper_Dealloc(NVEC_CUDA_MEMHELP(v), vcp->reduce_buffer_dev);
+  vcp->reduce_buffer_dev  = NULL;
   if (vcp->reduce_buffer_host != NULL)
-  {
-    vcp->userfreefn(NVEC_CUDA_CONTENT(v)->length,
-                    vcp->reduce_buffer_host,
-                    vcp->reduce_buffer_dev);
-  }
-
-  // if (vcp->use_managed_mem)
-  // {
-  //   /* managed memory */
-  //   if (vcp->userfreefn)
-  //   {
-  //     if (vcp->reduce_buffer_dev != NULL)
-  //       vcp->userfreefn(vcp->reduce_buffer_dev);
-  //   }
-  //   else
-  //   {
-  //     if (vcp->reduce_buffer_dev != NULL)
-  //     {
-  //       err = cudaFree(vcp->reduce_buffer_dev);
-  //       SUNDIALS_CUDA_VERIFY(err);
-  //     }
-  //   }
-  //   vcp->reduce_buffer_dev = vcp->reduce_buffer_host = NULL;
-  // }
-  // else
-  // {
-  //   /* unmanaged memory */
-  //   if (vcp->reduce_buffer_dev != NULL)
-  //   {
-  //     err = cudaFree(vcp->reduce_buffer_dev);
-  //     SUNDIALS_CUDA_VERIFY(err);
-  //   }
-  //   if (vcp->reduce_buffer_host != NULL) free(vcp->reduce_buffer_host);
-  //   vcp->reduce_buffer_dev = NULL;
-  //   vcp->reduce_buffer_host = NULL;
-  // }
+    SUNMemoryHelper_Dealloc(NVEC_CUDA_MEMHELP(v), vcp->reduce_buffer_host);
+  vcp->reduce_buffer_host = NULL;
 }
 
 /* Copy the reduction buffer from the device to the host.
  */
 int CopyReductionBufferFromDevice(N_Vector v, size_t n)
 {
-  cudaError_t err;
+  int retval;
+  cudaError_t cuerr;
 
-  /* If using managed memory, then we don't need to do a copy, but we
-      still need to synchronize the device to adhere to the unified
-      memory access rules. */
-  if (NVEC_CUDA_PRIVATE(v)->use_managed_mem)
+  retval = SUNMemoryHelper_CopyAsync(NVEC_CUDA_MEMHELP(v),
+                                     NVEC_CUDA_PRIVATE(v)->reduce_buffer_host,
+                                     NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev,
+                                     n*sizeof(realtype),
+                                     (void*) NVEC_CUDA_STREAM(v));
+
+  if (retval)
   {
-    err = cudaStreamSynchronize(NVEC_CUDA_STREAM(v));
+    SUNDIALS_DEBUG_PRINT("ERROR in CopyReductionBufferFromDevice: SUNMemoryHelper_CopyAsync returned nonzero\n");
   }
-  else
-  {
-    err = cudaMemcpyAsync(NVEC_CUDA_PRIVATE(v)->reduce_buffer_host,
-                          NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev,
-                          n*sizeof(realtype),
-                          cudaMemcpyDeviceToHost,
-                          NVEC_CUDA_STREAM(v));
-  }
-  return (!SUNDIALS_CUDA_VERIFY(err)) ? -1 : 0;
+
+  /* we synchronize with respect to the host, but only in this stream */
+  cuerr = cudaStreamSynchronize(*NVEC_CUDA_STREAM(v));
+  return (!SUNDIALS_CUDA_VERIFY(cuerr)) ? -1 : 0;
 }
 
 /* Get the kernel launch parameters based on the kernel type (reduction or not),
@@ -2193,13 +2143,13 @@ int GetKernelParameters(N_Vector v, booleantype reduction, size_t& grid, size_t&
     grid      = reduce_exec_policy->gridSize(n);
     block     = reduce_exec_policy->blockSize();
     shMemSize = 0;
-    stream    = reduce_exec_policy->stream();
+    stream    = *reduce_exec_policy->stream();
     if (block % CUDA_WARP_SIZE)
     {
 #ifdef SUNDIALS_DEBUG
       throw std::runtime_error("the block size must be a multiple must be of CUDA warp size");
 #endif
-      return -1;
+      return(-1);
     }
   }
   else
@@ -2208,7 +2158,7 @@ int GetKernelParameters(N_Vector v, booleantype reduction, size_t& grid, size_t&
     grid      = stream_exec_policy->gridSize(n);
     block     = stream_exec_policy->blockSize();
     shMemSize = 0;
-    stream    = stream_exec_policy->stream();
+    stream    = *stream_exec_policy->stream();
   }
 
   if (grid == 0)
@@ -2216,17 +2166,17 @@ int GetKernelParameters(N_Vector v, booleantype reduction, size_t& grid, size_t&
 #ifdef SUNDIALS_DEBUG
     throw std::runtime_error("the grid size must be > 0");
 #endif
-    return -1;
+    return(-1);
   }
   if (block == 0)
   {
 #ifdef SUNDIALS_DEBUG
     throw std::runtime_error("the block size must be > 0");
 #endif
-    return -1;
+    return(-1);
   }
 
-  return 0;
+  return(0);
 }
 
 /* Should be called after a kernel launch.

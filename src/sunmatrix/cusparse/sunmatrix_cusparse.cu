@@ -70,11 +70,11 @@ static SUNMatrix SUNMatrix_cuSparse_NewEmpty();
 
 /* ------------------------------------------------------------------
  * Default execution policy definition.
- * 
+ *
  * This policy tries to help us leverage the structure of the matrix.
  * It will choose block sizes which are a multiple of the warp size,
  * and it will choose a grid size to such that all work elements are
- * covered. 
+ * covered.
  * ------------------------------------------------------------------ */
 
 class SUNCuSparseMatrixExecPolicy : public SUNCudaExecPolicy
@@ -98,9 +98,9 @@ public:
     return max_block_size(CUDA_WARP_SIZE*(numWorkElements + CUDA_WARP_SIZE - 1)/CUDA_WARP_SIZE);
   }
 
-  virtual cudaStream_t stream() const
+  virtual const cudaStream_t* stream() const
   {
-    return stream_;
+    return &stream_;
   }
 
   virtual CudaExecPolicy* clone() const
@@ -553,7 +553,7 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
   if (SUNMatGetID(dA) != SUNMATRIX_CUSPARSE)
     return SUNMAT_ILL_INPUT;
 
-  stream = SMCU_EXECPOLICY_S(dA)->stream();
+  stream = *SMCU_EXECPOLICY_S(dA)->stream();
 
   if (h_data != NULL)
   {
@@ -608,7 +608,7 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
   if (SUNMatGetID(dA) != SUNMATRIX_CUSPARSE)
     return SUNMAT_ILL_INPUT;
 
-  stream = SMCU_EXECPOLICY_S(dA)->stream();
+  stream = *SMCU_EXECPOLICY_S(dA)->stream();
 
   if (h_data != NULL)
   {
@@ -747,7 +747,7 @@ int SUNMatZero_cuSparse(SUNMatrix A)
   cudaError_t cuerr;
   cudaStream_t stream;
 
-  stream = SMCU_EXECPOLICY_S(A)->stream();
+  stream = *SMCU_EXECPOLICY_S(A)->stream();
 
   /* set all data to zero */
   cuerr = cudaMemsetAsync(SMCU_DATA_S(A), 0, SMCU_NNZ_S(A)*sizeof(realtype), stream);
@@ -782,7 +782,7 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
   if (!SMCompatible_cuSparse(src, dst))
     return SUNMAT_ILL_INPUT;
 
-  stream = SMCU_EXECPOLICY_S(src)->stream();
+  stream = *SMCU_EXECPOLICY_S(src)->stream();
 
   /* Ensure that dst is allocated with at least as
      much memory as we have nonzeros in src */
@@ -825,7 +825,7 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
 int SUNMatScaleAddI_cuSparse(realtype c, SUNMatrix A)
 {
   unsigned threadsPerBlock, gridSize;
-  cudaStream_t stream = SMCU_EXECPOLICY_S(A)->stream();
+  cudaStream_t stream = *SMCU_EXECPOLICY_S(A)->stream();
 
   switch (SMCU_SPARSETYPE_S(A))
   {
@@ -855,7 +855,7 @@ int SUNMatScaleAddI_cuSparse(realtype c, SUNMatrix A)
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&milliseconds, start, stop);
-        fprintf(stdout, 
+        fprintf(stdout,
                 "[performance] scaleAddIKernelCSR runtime (s): %22.15e\n",
                 milliseconds/1000.0);
         /* scaleAddIKernelCSR reads 1 real, writes 1 real, reads 3 ints */
@@ -894,7 +894,7 @@ int SUNMatScaleAddI_cuSparse(realtype c, SUNMatrix A)
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&milliseconds, start, stop);
-        fprintf(stdout, 
+        fprintf(stdout,
                 "[performance] scaleAddIKernelBCSR runtime (s): %22.15e\n",
                 milliseconds/1000.0);
         /* scaleAddIKernelBCSR reads 1 real, writes 1 real, reads 3 ints */
@@ -930,7 +930,7 @@ int SUNMatScaleAdd_cuSparse(realtype c, SUNMatrix A, SUNMatrix B)
     return SUNMAT_ILL_INPUT;
   }
 
-  stream = SMCU_EXECPOLICY_S(A)->stream();
+  stream = *SMCU_EXECPOLICY_S(A)->stream();
 
   switch (SMCU_SPARSETYPE_S(A))
   {
@@ -959,7 +959,7 @@ int SUNMatScaleAdd_cuSparse(realtype c, SUNMatrix A, SUNMatrix B)
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&milliseconds, start, stop);
-        fprintf(stdout, 
+        fprintf(stdout,
                 "[performance] scaleAddKernelCSR runtime (s): %22.15e\n",
                 milliseconds/1000.0);
         /* scaleAddKernelCSR reads 2 realtype, and writes 1 realtype */
@@ -994,7 +994,7 @@ int SUNMatScaleAdd_cuSparse(realtype c, SUNMatrix A, SUNMatrix B)
           cudaEventRecord(stop);
           cudaEventSynchronize(stop);
           cudaEventElapsedTime(&milliseconds, start, stop);
-          fprintf(stdout, 
+          fprintf(stdout,
                   "[performance] scaleAddKernelCSR (BCSR format) runtime (s): %22.15e\n",
                   milliseconds/1000.0);
           /* scaleAddKernelCSR reads 2 realtype, and writes 1 realtype */
@@ -1067,7 +1067,7 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
           cudaEventRecord(stop);
           cudaEventSynchronize(stop);
           cudaEventElapsedTime(&milliseconds, start, stop);
-          fprintf(stdout, 
+          fprintf(stdout,
                   "[performance] cusparseXcsrmv untime (s): %22.15e\n",
                   milliseconds/1000.0);
 #endif
@@ -1080,7 +1080,7 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
     cudaStream_t stream;
     unsigned gridSize, threadsPerBlock;
 
-    stream = SMCU_EXECPOLICY_S(A)->stream();
+    stream = *SMCU_EXECPOLICY_S(A)->stream();
 
     /* Choose the grid size to be the number of blocks in the matrix,
        and then choose threadsPerBlock to be a multiple of the warp size
@@ -1110,7 +1110,7 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
       cudaEventRecord(stop);
       cudaEventSynchronize(stop);
       cudaEventElapsedTime(&milliseconds, start, stop);
-      fprintf(stdout, 
+      fprintf(stdout,
               "[performance] matvecBCSR runtime (s): %22.15e\n",
               milliseconds/1000.0);
       fprintf(stdout,

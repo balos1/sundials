@@ -32,7 +32,7 @@ class CudaExecPolicy
 public:
   virtual size_t gridSize(size_t numWorkUnits = 0, size_t blockDim = 0) const = 0;
   virtual size_t blockSize(size_t numWorkUnits = 0, size_t gridDim = 0) const = 0;
-  virtual cudaStream_t stream() const = 0;
+  virtual const cudaStream_t* stream() const = 0;
   virtual CudaExecPolicy* clone() const = 0;
   virtual ~CudaExecPolicy() {}
 };
@@ -67,9 +67,9 @@ public:
     return blockDim_;
   }
 
-  virtual cudaStream_t stream() const
+  virtual const cudaStream_t* stream() const
   {
-    return stream_;
+    return &stream_;
   }
 
   virtual CudaExecPolicy* clone() const
@@ -78,8 +78,8 @@ public:
   }
 
 private:
-  const size_t blockDim_;
   const cudaStream_t stream_;
+  const size_t blockDim_;
 };
 
 /*
@@ -109,9 +109,9 @@ public:
     return blockDim_;
   }
 
-  virtual cudaStream_t stream() const
+  virtual const cudaStream_t* stream() const
   {
-    return stream_;
+    return &stream_;
   }
 
   virtual CudaExecPolicy* clone() const
@@ -120,9 +120,9 @@ public:
   }
 
 private:
+  const cudaStream_t stream_;
   const size_t blockDim_;
   const size_t gridDim_;
-  const cudaStream_t stream_;
 };
 
 
@@ -164,9 +164,9 @@ public:
     return blockDim_;
   }
 
-  virtual cudaStream_t stream() const
+  virtual const cudaStream_t* stream() const
   {
-    return stream_;
+    return &stream_;
   }
 
   virtual CudaExecPolicy* clone() const
@@ -175,9 +175,9 @@ public:
   }
 
 private:
+  const cudaStream_t stream_;
   const size_t blockDim_;
   const size_t gridDim_;
-  const cudaStream_t stream_;
 };
 
 } // namespace sundials

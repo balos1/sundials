@@ -13,35 +13,18 @@
  * -----------------------------------------------------------------
  * This is the header file for the CUDA implementation of the
  * NVECTOR module.
- *
- * Notes:
- *
- *   - The definition of the generic N_Vector structure can be found
- *     in the header file sundials_nvector.h.
- *
- *   - The definitions of the types 'realtype' and 'sunindextype' can
- *     be found in the header file sundials_types.h, and it may be
- *     changed (at the configuration stage) according to the user's needs.
- *     The sundials_types.h file also contains the definition
- *     for the type 'booleantype'.
- *
- *   - N_Vector arguments to arithmetic vector operations need not
- *     be distinct. For example, the following call:
- *
- *       N_VLinearSum_Cuda(a,x,b,y,y);
- *
- *     (which stores the result of the operation a*x+b*y in y)
- *     is legal.
  * -----------------------------------------------------------------*/
 
 #ifndef _NVECTOR_CUDA_H
 #define _NVECTOR_CUDA_H
 
-
+#include <cuda_runtime.h>
 #include <stdio.h>
+
 #include <sundials/sundials_cuda_policies.hpp>
 #include <sundials/sundials_nvector.h>
 #include <sundials/sundials_config.h>
+#include <sunmemory/sunmemory_cuda.h>
 
 #ifdef __cplusplus  /* wrapper to enable C++ usage */
 extern "C" {
@@ -56,9 +39,8 @@ extern "C" {
 struct _N_VectorContent_Cuda
 {
     sunindextype       length;
-    booleantype        own_data;
-    realtype*          host_data;
-    realtype*          device_data;
+    SUNMemory          host_data;
+    SUNMemory          device_data;
     SUNCudaExecPolicy* stream_exec_policy;
     SUNCudaExecPolicy* reduce_exec_policy;
     void*              priv; /* 'private' data */
@@ -74,19 +56,18 @@ typedef struct _N_VectorContent_Cuda *N_VectorContent_Cuda;
 
 SUNDIALS_EXPORT N_Vector N_VNew_Cuda(sunindextype length);
 SUNDIALS_EXPORT N_Vector N_VNewManaged_Cuda(sunindextype length);
+SUNDIALS_EXPORT N_Vector N_VNewCustom_Cuda(sunindextype length,
+                                           SUNMemoryHelper helper);
 SUNDIALS_EXPORT N_Vector N_VNewEmpty_Cuda();
 SUNDIALS_EXPORT N_Vector N_VMake_Cuda(sunindextype length,
                                       realtype *h_vdata,
                                       realtype *d_vdata);
 SUNDIALS_EXPORT N_Vector N_VMakeManaged_Cuda(sunindextype length,
                                              realtype *vdata);
-SUNDIALS_EXPORT N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
-                                                          void* (*allocfn)(size_t),
-                                                          void (*freefn)(void*));
-SUNDIALS_EXPORT N_Vector N_VMakeWithAllocator_Cuda(sunindextype length, realtype* h_vdata, realtype* d_vdata,
-                                   void (*allocfn)(sunindextype,size_t,void**,void**),
-                                   void (*freefn)(sunindextype,void*,void*));
-
+SUNDIALS_DEPRECATED N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
+                                                              void* (*allocfn)(size_t),
+                                                              void (*freefn)(void*));
+SUNDIALS_EXPORT sunindextype N_VGetLength_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetHostArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);

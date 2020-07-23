@@ -17,13 +17,14 @@
 install(CODE "MESSAGE(\"\nInstall NVECTOR_CUDA\n\")")
 
 # Add variable nveccuda_SOURCES with the sources for the NVECUDA lib
-set(nveccuda_SOURCES nvector_cuda.cu VectorKernels.cuh VectorArrayKernels.cuh)
+set(nveccuda_SOURCES nvector_cuda.cu sundials_cuda_memory.cu)
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the NVECCUDA library
 set(shared_SOURCES
   sundials_nvector.c
   sundials_math.c
+  sundials_memory.c
 )
 add_prefix(${sundials_SOURCE_DIR}/src/sundials/ shared_SOURCES)
 
@@ -66,5 +67,6 @@ endif(BUILD_SHARED_LIBS)
 
 # Install the CUDA NVector header files
 install(FILES ${nveccuda_HEADERS} DESTINATION include/nvector)
+install(FILES ${sundials_SOURCE_DIR}/include/sunmemory/sunmemory_cuda.h DESTINATION include/sunmemory)
 
 message(STATUS "Added NVECTOR_CUDA module")

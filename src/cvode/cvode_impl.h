@@ -280,7 +280,9 @@ typedef struct CVodeMemRec {
 
   int (*cv_lfree)(struct CVodeMemRec *cv_mem);
 
-  void     *cv_lmem;  /* Linear Solver specific memory            */
+  /* Linear Solver specific memory */
+
+  void     *cv_lmem;  /* linear solver interface memory structure */
   long int  cv_msbp;  /* max number of steps between lsetip calls */
 
   /*------------

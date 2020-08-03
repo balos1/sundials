@@ -1495,7 +1495,7 @@ int cvLsSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   /* Use nst, gamma/gammap, and convfail to set J/P eval. flag jok */
   dgamma = SUNRabs((cv_mem->cv_gamma/cv_mem->cv_gammap) - ONE);
   cvls_mem->jbad = (cv_mem->cv_nst == 0) ||
-    (cv_mem->cv_nst > cvls_mem->nstlj + cvls_mem->msbj) ||
+    (cv_mem->cv_nst >= cvls_mem->nstlj + cvls_mem->msbj) ||
     ((convfail == CV_FAIL_BAD_J) && (dgamma < CVLS_DGMAX)) ||
     (convfail == CV_FAIL_OTHER);
 

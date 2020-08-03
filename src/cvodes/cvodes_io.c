@@ -474,6 +474,29 @@ int CVodeSetNonlinConvCoef(void *cvode_mem, realtype nlscoef)
 }
 
 /*
+ * CVodeSetMaxStepsBetweenLSetup
+ *
+ * Specifies the maximum number of time steps to between calls to the linear
+ * solver setup function to recompute the Jacobian matrix and/or preconditioner
+ */
+
+int CVodeSetMaxStepsBetweenLSetup(void *cvode_mem, long int msbp)
+{
+  CVodeMem cv_mem;
+
+  if (cvode_mem == NULL) {
+    cvProcessError(NULL, CV_MEM_NULL, "CVODES", "CVodeSetMaxStepsBetweenLSetup", MSGCV_NO_MEM);
+    return(CV_MEM_NULL);
+  }
+
+  cv_mem = (CVodeMem) cvode_mem;
+
+  cv_mem->cv_msbp = (msbp <= ZERO) ? MSBP : msbp;
+
+  return(CV_SUCCESS);
+}
+
+/*
  * CVodeSetRootDirection
  *
  * Specifies the direction of zero-crossings to be monitored.

@@ -256,7 +256,7 @@ char *ARKStepGetLinReturnFlagName(long int flag) {
 /*---------------------------------------------------------------
   ARKStepSetUserData:
 
-  Wrapper for generic arkSetUserData and arkLSSetUserData 
+  Wrapper for generic arkSetUserData and arkLSSetUserData
   routines.
   ---------------------------------------------------------------*/
 int ARKStepSetUserData(void *arkode_mem, void *user_data)
@@ -1162,7 +1162,7 @@ int ARKStepSetDeltaGammaMax(void *arkode_mem, realtype dgmax)
 
 
 /*---------------------------------------------------------------
-  ARKStepSetMaxStepsBetweenLSet:
+  ARKStepSetMaxStepsBetweenLSetup:
 
   Specifies the user-provided linear setup decision constant
   msbp.  Positive values give the number of time steps to wait
@@ -1170,7 +1170,7 @@ int ARKStepSetDeltaGammaMax(void *arkode_mem, realtype dgmax)
   lsetup at each nonlinear solve; a zero value implies a reset
   to the default.
   ---------------------------------------------------------------*/
-int ARKStepSetMaxStepsBetweenLSet(void *arkode_mem, int msbp)
+int ARKStepSetMaxStepsBetweenLSetup(void *arkode_mem, int msbp)
 {
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
@@ -1189,6 +1189,12 @@ int ARKStepSetMaxStepsBetweenLSet(void *arkode_mem, int msbp)
   }
 
   return(ARK_SUCCESS);
+}
+
+/* Deprecated */
+int ARKStepSetMaxStepsBetweenLSet(void *arkode_mem, int msbp)
+{
+  return(ARKStepSetMaxStepsBetweenLSetup(arkode_mem, msbp));
 }
 
 

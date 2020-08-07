@@ -173,8 +173,8 @@ SUNDIALS_EXPORT int MRIStepSetNonlinRDiv(void *arkode_mem,
                                          realtype rdiv);
 SUNDIALS_EXPORT int MRIStepSetDeltaGammaMax(void *arkode_mem,
                                             realtype dgmax);
-SUNDIALS_EXPORT int MRIStepSetMaxStepsBetweenLSet(void *arkode_mem,
-                                                  int msbp);
+SUNDIALS_EXPORT int MRIStepSetMaxStepsBetweenLSetup(void *arkode_mem,
+                                                    int msbp);
 SUNDIALS_EXPORT int MRIStepSetPredictorMethod(void *arkode_mem,
                                               int method);
 SUNDIALS_EXPORT int MRIStepSetMaxNonlinIters(void *arkode_mem,

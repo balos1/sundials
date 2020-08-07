@@ -57,7 +57,7 @@ extern "C" {
 #define DEFAULT_ARK_ITABLE_4    ARK436L2SA_DIRK_6_3_4
 #define DEFAULT_ARK_ITABLE_5    ARK548L2SA_DIRK_8_4_5
 
-/* backwards-compatibility */  
+/* backwards-compatibility */
 typedef ARKStagePredictFn ARKStepStagePredictFn;
 
 /* -------------------
@@ -162,8 +162,8 @@ SUNDIALS_EXPORT int ARKStepSetNonlinRDiv(void *arkode_mem,
                                          realtype rdiv);
 SUNDIALS_EXPORT int ARKStepSetDeltaGammaMax(void *arkode_mem,
                                             realtype dgmax);
-SUNDIALS_EXPORT int ARKStepSetMaxStepsBetweenLSet(void *arkode_mem,
-                                                  int msbp);
+SUNDIALS_EXPORT int ARKStepSetMaxStepsBetweenLSetup(void *arkode_mem,
+                                                    int msbp);
 SUNDIALS_EXPORT int ARKStepSetPredictorMethod(void *arkode_mem,
                                               int method);
 SUNDIALS_EXPORT int ARKStepSetStabilityFn(void *arkode_mem,
@@ -389,6 +389,10 @@ SUNDIALS_EXPORT void ARKStepFree(void **arkode_mem);
 /* Output the ARKStep memory structure (useful when debugging) */
 SUNDIALS_EXPORT void ARKStepPrintMem(void* arkode_mem, FILE* outfile);
 
+
+/* Deprecated functions */
+SUNDIALS_DEPRECATED int ARKStepSetMaxStepsBetweenLSet(void *arkode_mem,
+                                                      int msbp);
 
 #ifdef __cplusplus
 }

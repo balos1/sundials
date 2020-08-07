@@ -702,7 +702,7 @@ int MRIStepSetDeltaGammaMax(void *arkode_mem, realtype dgmax)
 
 
 /*---------------------------------------------------------------
-  MRIStepSetMaxStepsBetweenLSet:
+  MRIStepSetMaxStepsBetweenLSetup:
 
   Specifies the user-provided linear setup decision constant
   msbp.  Positive values give the number of time steps to wait
@@ -710,7 +710,7 @@ int MRIStepSetDeltaGammaMax(void *arkode_mem, realtype dgmax)
   lsetup at each nonlinear solve; a zero value implies a reset
   to the default.
   ---------------------------------------------------------------*/
-int MRIStepSetMaxStepsBetweenLSet(void *arkode_mem, int msbp)
+int MRIStepSetMaxStepsBetweenLSetup(void *arkode_mem, int msbp)
 {
   ARKodeMem ark_mem;
   ARKodeMRIStepMem step_mem;

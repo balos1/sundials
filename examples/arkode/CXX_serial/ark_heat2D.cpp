@@ -276,8 +276,8 @@ int main(int argc, char* argv[])
     if (check_flag(&flag, "ARKStepSetPreconditioner", 1)) return 1;
 
     // Set max steps between linear solver (preconditioner) setup calls
-    flag = ARKStepSetMaxStepsBetweenLSet(arkode_mem, udata->msbp);
-    if (check_flag(&flag, "ARKStepSetMaxStepBetweenLSet", 1)) return 1;
+    flag = ARKStepSetMaxStepsBetweenLSetup(arkode_mem, udata->msbp);
+    if (check_flag(&flag, "ARKStepSetMaxStepBetweenLSetup", 1)) return 1;
   }
 
   // Set linear solver tolerance factor

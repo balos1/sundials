@@ -383,9 +383,9 @@ Table: Keys for setting FARKODE integer optional inputs
 
 .. cssclass:: table-bordered
 
-=======================  =========================================
+=======================  ===========================================
 Key                      ARKStep routine
-=======================  =========================================
+=======================  ===========================================
 ``ORDER``                :c:func:`ARKStepSetOrder()`
 ``DENSE_ORDER``          :c:func:`ARKStepSetDenseOrder()`
 ``LINEAR``               :c:func:`ARKStepSetLinear()`
@@ -403,9 +403,9 @@ Key                      ARKStep routine
 ``MAX_CONVFAIL``         :c:func:`ARKStepSetMaxConvFails()`
 ``MAX_NITERS``           :c:func:`ARKStepSetMaxNonlinIters()`
 ``ADAPT_SMALL_NEF``      :c:func:`ARKStepSetSmallNumEFails()`
-``LSETUP_MSBP``          :c:func:`ARKStepSetMaxStepsBetweenLSet()`
+``LSETUP_MSBP``          :c:func:`ARKStepSetMaxStepsBetweenLSetup()`
 ``MAX_CONSTR_FAIL``      :c:func:`ARKStepSetMaxNumConstrFails()`
-=======================  =========================================
+=======================  ===========================================
 
 *(a)* When setting ``ARK_TABLE_NUM``, pass in *IVAL* as an array of
 length 2, specifying the IRK table number first, then the ERK table

@@ -2137,7 +2137,7 @@ matrix-based and matrix-free groups are mutually exclusive, whereas the
 .. _ARKStep_CInterface.ARKLsInputs.General:
 
 .. index::
-   single: optional input; generic linear solver interface
+   single: optional input; generic linear solver interface (ARKStep)
 
 Optional inputs for the ARKLS linear solver interface
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -2156,7 +2156,7 @@ The matrix or preconditioner for :math:`{\mathcal A}` can only be
 updated within a call to the linear solver 'setup' routine.  In
 general, the frequency with which the linear solver setup routine is
 called may be controlled with the *msbp* argument to
-:c:func:`ARKStepSetMaxStepsBetweenLSet()`.  When this occurs, the
+:c:func:`ARKStepSetMaxStepsBetweenLSetup()`.  When this occurs, the
 validity of :math:`{\mathcal A}` for successive time steps
 intimately depends on whether the corresponding :math:`\gamma` and
 :math:`J` inputs remain valid.
@@ -2185,15 +2185,16 @@ value is reused and the system matrix :math:`{\mathcal A}(t,y) \approx M - \gamm
 is recomputed using the current :math:`\gamma` value.
 
 
+
 .. cssclass:: table-bordered
 
-=============================================  =========================================  ============
-Optional input                                 Function name                              Default
-=============================================  =========================================  ============
-Max change in step signaling new :math:`J`     :c:func:`ARKStepSetDeltaGammaMax()`        0.2
-Linear solver setup frequency                  :c:func:`ARKStepSetMaxStepsBetweenLSet()`  20
-Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetweenJac()`   51
-=============================================  =========================================  ============
+=============================================  ===========================================  ============
+Optional input                                 Function name                                Default
+=============================================  ===========================================  ============
+Max change in step signaling new :math:`J`     :c:func:`ARKStepSetDeltaGammaMax()`          0.2
+Linear solver setup frequency                  :c:func:`ARKStepSetMaxStepsBetweenLSetup()`  20
+Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetweenJac()`     51
+=============================================  ===========================================  ============
 
 
 .. c:function:: int ARKStepSetDeltaGammaMax(void* arkode_mem, realtype dgmax)
@@ -2215,9 +2216,9 @@ Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetwee
 
 
 .. index::
-   single: optional input; linear solver setup frequency
+   single: optional input; linear solver setup frequency (ARKStep)
 
-.. c:function:: int ARKStepSetMaxStepsBetweenLSet(void* arkode_mem, int msbp)
+.. c:function:: int ARKStepSetMaxStepsBetweenLSetup(void* arkode_mem, int msbp)
 
    Specifies the frequency of calls to the linear solver setup
    routine.
@@ -2231,7 +2232,6 @@ Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetwee
       * *ARK_MEM_NULL* if the ARKStep memory is ``NULL``
 
    **Notes:**
-
    Positive values of **msbp** specify the linear solver setup frequency. For
    example, an input of 1 means the setup function will be called every time
    step while an input of 2 means it will be called called every other time
@@ -2240,8 +2240,8 @@ Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetwee
 
 
 .. index::
-   single: optional input; Jacobian update frequency
-   single: optional input; preconditioner update frequency
+   single: optional input; Jacobian update frequency (ARKStep)
+   single: optional input; preconditioner update frequency (ARKStep)
 
 .. c:function:: int ARKStepSetMaxStepsBetweenJac(void* arkode_mem, long int msbj)
 
@@ -2250,7 +2250,7 @@ Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetwee
 
    **Arguments:**
       * *arkode_mem* -- pointer to the ARKStep memory block.
-      * *msbj* -- the Jacobian recomputation or preconditioner update frequency.
+      * *msbj* -- the Jacobian re-computation or preconditioner update frequency.
 
    **Return value:**
       * *ARKLS_SUCCESS* if successful.

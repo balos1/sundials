@@ -1276,7 +1276,8 @@ Disable rootfinding warnings & \id{CVodeSetNoInactiveRootWarn} & none \\
 \hline
 \multicolumn{3}{|c|}{\bf CVLS linear solver interface} \\
 \hline
-Jacobian / preconditioner update frequency & \id{CVodeSetMaxStepsBetweenJac} & 50\\
+Linear solver setup frequency & \id{CVodeSetMaxStepsBetweenLSetup} & 20\\
+Jacobian / preconditioner update frequency & \id{CVodeSetMaxStepsBetweenJac} & 51\\
 Jacobian function & \id{CVodeSetJacFn} & DQ\\
 Linear System function & \id{CVodeSetLinSysFn} & internal\\
 Enable or disable linear solution scaling & \id{CVodeSetLinearSolutionScaling} & on\\
@@ -1872,34 +1873,60 @@ case.
 As discussed in \S\ref{ss:ivp_sol}, {\cvodes} strives to reuse matrix
 and preconditioner data for as many solves as possible to amortize the
 high costs of matrix construction and factorization.  To that end,
-{\cvodes} provides a user-callable routine to modify this behavior.  To
-this end, we recall that the Newton system matrices are $M(t,y) = I -
-\gamma J(t,y)$, where the right-hand side function has Jacobian matrix
+{\cvodes} provides user-callable routines to modify this behavior.  Recall
+that the Newton system matrices are $M(t,y) = I - \gamma J(t,y)$, where the
+right-hand side function has Jacobian matrix
 $J(t,y) = \frac{\partial f(t,y)}{\partial y}$.
 
 The matrix or preconditioner for $M$ can only be updated within a call
 to the linear solver `setup' routine.  In general, the frequency with
 which this setup routine is called may be controlled with the
-\id{msbj} argument to \id{CVodeSetMaxStepsBetweenJac}.
+\id{msbp} argument to \id{CVodeSetMaxStepsBetweenLSetup}. When this occurs, the
+validity of $M$ for successive time steps intimately depends on whether the
+corresponding $\gamma$ and $J$ inputs remain valid.
 
-\index{Jacobian update frequency!optional input}
-\index{Preconditioner update frequency!optional input}
-\ucfunctionf{CVodeSetMaxStepsBetweenJac}
+At each call to the linear solver setup routine the decision to update $M$ with
+a new value of $\gamma$, and to reuse or reevaluate Jacobian information, depends
+on several factors including:
+\begin{itemize}
+  \item the success or failure of previous solve attempts,
+  \item the success or failure of the previous time step attempts,
+  \item the change in $\gamma$ from the value used when constructing $M$, and
+  \item the number of steps since Jacobian information was last evaluated.
+\end{itemize}
+
+The frequency with which to update Jacobian information can be controlled with
+the \id{msbj} argument to \id{CVodeSetMaxStepsBetweenJac}. We note that this
+is only checked \textit{within} calls to the linear solver setup routine, so
+values \id{msbj} $<$ \id{msbp} do not make sense. For linear-solvers with
+user-supplied preconditioning the above factors are used to determine whether to
+recommend updating the Jacobian information in the preconditioner (i.e., whether
+to set \id{jok} to \id{SUNFALSE} in calling the user-supplied preconditioner
+setup function (see \S\ref{ss:psolveFn}). For matrix-based linear solvers these
+factors determine whether the matrix
+$J(t,y) = \frac{\partial f(t,y)}{\partial y}$
+should be updated (either with an internal finite difference approximation or a
+call to the user-supplied Jacobian function (see \S\ref{ss:jacFn})); if not then
+the previous value is reused and the system matrix
+$M(t,y) \approx M - \gamma J(t,y)$
+is recomputed using the current $\gamma$ value.
+
+
+\index{Linear solver setup frequency!optional input}
+\ucfunctionf{CVodeSetMaxStepsBetweenLSetup}
 {
-  retval = CVodeSetMaxStepsBetweenJac(cvode\_mem, msbj);
+  retval = CVodeSetMaxStepsBetweenLSetup(cvode\_mem, msbp);
 }
 {
-  The function \ID{CVodeSetMaxStepsBetweenJac} specifies the maximum
-  number of time steps to wait before recomputation of the Jacobian or
-  recommendation to update the preconditioner.
+  The function \ID{CVodeSetMaxStepsBetweenLSetup} specifies the frequency of
+  calls to the linear solver setup function.
 }
 {
   \begin{args}[cvode\_mem]
   \item[cvode\_mem] (\id{void *})
     pointer to the {\cvodes} memory block.
   \item[msbj] (\id{long int})
-    maximum number of time steps to wait before
-    Jacobian/preconditioner reconstruction.
+    the linear solver setup frequency.
   \end{args}
 }
 {
@@ -1914,7 +1941,46 @@ which this setup routine is called may be controlled with the
   \end{args}
 }
 {
-  If \id{msbj} is less than 1, the default value of 50 will be used.
+  Positive values of \id{msbp} specify the linear solver setup frequency. For
+  example, an input of \id{1} means the setup function will be called every time
+  step while an input of \id{2} means it will be called called every other time
+  step. If \id{msbp} is less than 1, the default value of 20 will be used.
+
+  This function must be called \emph{after} the {\cvls} linear solver interface
+  has been initialized through a call to \id{CVodeSetLinearSolver}.
+}
+
+\index{Jacobian update frequency!optional input}
+\index{Preconditioner update frequency!optional input}
+\ucfunctionf{CVodeSetMaxStepsBetweenJac}
+{
+  retval = CVodeSetMaxStepsBetweenJac(cvode\_mem, msbj);
+}
+{
+  The function \ID{CVodeSetMaxStepsBetweenJac} specifies the frequency for
+  recomputing the Jacobian or recommending a preconditioner update.
+}
+{
+  \begin{args}[cvode\_mem]
+  \item[cvode\_mem] (\id{void *})
+    pointer to the {\cvodes} memory block.
+  \item[msbj] (\id{long int})
+    the Jacobian re-computation or preconditioner update frequency.
+  \end{args}
+}
+{
+  The return value \id{flag} (of type \id{int}) is one of
+  \begin{args}[CVLS\_LMEM\_NULL]
+  \item[\Id{CVLS\_SUCCESS}]
+    The optional value has been successfully set.
+  \item[\Id{CVLS\_MEM\_NULL}]
+    The \id{cvode\_mem} pointer is \id{NULL}.
+  \item[\Id{CVLS\_LMEM\_NULL}]
+    The {\cvls} linear solver interface has not been initialized.
+  \end{args}
+}
+{
+  If \id{msbj} is less than 1, the default value of 51 will be used.
 
   This function must be called \emph{after} the {\cvls} linear solver
   interface has been initialized through a call to

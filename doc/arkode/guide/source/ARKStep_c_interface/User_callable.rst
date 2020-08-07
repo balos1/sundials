@@ -2136,6 +2136,9 @@ matrix-based and matrix-free groups are mutually exclusive, whereas the
 
 .. _ARKStep_CInterface.ARKLsInputs.General:
 
+.. index::
+   single: optional input; generic linear solver interface
+
 Optional inputs for the ARKLS linear solver interface
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -2213,6 +2216,8 @@ Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetwee
    **Notes:**  Any non-positive parameter will imply a reset to the default value.
 
 
+.. index::
+   single: optional input; linear solver setup frequency
 
 .. c:function:: int ARKStepSetMaxStepsBetweenLSet(void* arkode_mem, int msbp)
 
@@ -2232,6 +2237,9 @@ Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetwee
       * *ARK_MEM_NULL* if the ARKStep memory is ``NULL``
 
 
+.. index::
+   single: optional input; Jacobian update frequency
+   single: optional input; preconditioner update frequency
 
 .. c:function:: int ARKStepSetMaxStepsBetweenJac(void* arkode_mem, long int msbj)
 

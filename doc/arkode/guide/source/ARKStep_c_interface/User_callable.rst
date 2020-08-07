@@ -2145,8 +2145,8 @@ Optional inputs for the ARKLS linear solver interface
 As discussed in the section :ref:`Mathematics.Linear.Setup`, ARKode
 strives to reuse matrix and preconditioner data for as many solves as
 possible to amortize the high costs of matrix construction and
-factorization.  To that end, ARKStep provides three user-callable
-routines to modify this behavior.  To this end, we recall that the
+factorization.  To that end, ARKStep provides user-callable
+routines to modify this behavior.  Recall that the
 Newton system matrices that arise within an implicit stage solve are
 :math:`{\mathcal A}(t,z) \approx M - \gamma J(t,z)`, where the
 implicit right-hand side function has Jacobian matrix
@@ -2185,16 +2185,14 @@ value is reused and the system matrix :math:`{\mathcal A}(t,y) \approx M - \gamm
 is recomputed using the current :math:`\gamma` value.
 
 
-
-
 .. cssclass:: table-bordered
 
 =============================================  =========================================  ============
 Optional input                                 Function name                              Default
 =============================================  =========================================  ============
 Max change in step signaling new :math:`J`     :c:func:`ARKStepSetDeltaGammaMax()`        0.2
-Max steps between calls to "lsetup" routine    :c:func:`ARKStepSetMaxStepsBetweenLSet()`  20
-Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetweenJac()`   50
+Linear solver setup frequency                  :c:func:`ARKStepSetMaxStepsBetweenLSet()`  20
+Jacobian / preconditioner update frequency     :c:func:`ARKStepSetMaxStepsBetweenJac()`   51
 =============================================  =========================================  ============
 
 
@@ -2222,19 +2220,23 @@ Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetwee
 .. c:function:: int ARKStepSetMaxStepsBetweenLSet(void* arkode_mem, int msbp)
 
    Specifies the frequency of calls to the linear solver setup
-   routine.  Positive values specify the number of time steps between
-   setup calls; negative values force recomputation at each stage
-   solve; zero values reset to the default.
+   routine.
 
    **Arguments:**
       * *arkode_mem* -- pointer to the ARKStep memory block.
-      * *msbp* -- maximum number of time steps between linear solver
-        setup calls, or flag to force recomputation at each stage
-        solve (default is 20).
+      * *msbp* -- the linear solver setup frequency.
 
    **Return value:**
       * *ARK_SUCCESS* if successful
       * *ARK_MEM_NULL* if the ARKStep memory is ``NULL``
+
+   **Notes:**
+
+   Positive values of **msbp** specify the linear solver setup frequency. For
+   example, an input of 1 means the setup function will be called every time
+   step while an input of 2 means it will be called called every other time
+   step. If **msbp** is 0, the default value of 20 will be used. A negative
+   value forces the a linear solver step at each implicit stage.
 
 
 .. index::
@@ -2243,14 +2245,12 @@ Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetwee
 
 .. c:function:: int ARKStepSetMaxStepsBetweenJac(void* arkode_mem, long int msbj)
 
-   Specifies the maximum number of time steps to wait before
-   recomputation of the Jacobian or recommendation to update the
-   preconditioner.
+   Specifies the frequency for recomputing the Jacobian or recommending a
+   preconditioner update.
 
    **Arguments:**
       * *arkode_mem* -- pointer to the ARKStep memory block.
-      * *msbj* -- maximum number of time steps between Jacobian or
-        preconditioner updates (default is 50).
+      * *msbj* -- the Jacobian recomputation or preconditioner update frequency.
 
    **Return value:**
       * *ARKLS_SUCCESS* if successful.
@@ -2259,7 +2259,7 @@ Max steps between calls to new :math:`J`       :c:func:`ARKStepSetMaxStepsBetwee
       * *ARKLS_ILL_INPUT* if an input has an illegal value.
 
    **Notes:** Passing a value *msbj* :math:`\le 0` indicates to use the
-   default value of 50.
+   default value of 51.
 
    This function must be called *after* the ARKLS system solver
    interface has been initialized through a call to

@@ -95,6 +95,7 @@ module fcvode_mod
  public :: FCVodeSetMaxNonlinIters
  public :: FCVodeSetMaxConvFails
  public :: FCVodeSetNonlinConvCoef
+ public :: FCVodeSetMaxStepsBetweenLSetup
  public :: FCVodeSetConstraints
  public :: FCVodeSetNonlinearSolver
  public :: FCVodeSetUseIntegratorFusedKernels
@@ -403,6 +404,15 @@ result(fresult)
 use, intrinsic :: ISO_C_BINDING
 type(C_PTR), value :: farg1
 real(C_DOUBLE), intent(in) :: farg2
+integer(C_INT) :: fresult
+end function
+
+function swigc_FCVodeSetMaxStepsBetweenLSetup(farg1, farg2) &
+bind(C, name="_wrap_FCVodeSetMaxStepsBetweenLSetup") &
+result(fresult)
+use, intrinsic :: ISO_C_BINDING
+type(C_PTR), value :: farg1
+integer(C_LONG), intent(in) :: farg2
 integer(C_INT) :: fresult
 end function
 
@@ -1499,6 +1509,22 @@ real(C_DOUBLE) :: farg2
 farg1 = cvode_mem
 farg2 = nlscoef
 fresult = swigc_FCVodeSetNonlinConvCoef(farg1, farg2)
+swig_result = fresult
+end function
+
+function FCVodeSetMaxStepsBetweenLSetup(cvode_mem, msbp) &
+result(swig_result)
+use, intrinsic :: ISO_C_BINDING
+integer(C_INT) :: swig_result
+type(C_PTR) :: cvode_mem
+integer(C_LONG), intent(in) :: msbp
+integer(C_INT) :: fresult 
+type(C_PTR) :: farg1 
+integer(C_LONG) :: farg2 
+
+farg1 = cvode_mem
+farg2 = msbp
+fresult = swigc_FCVodeSetMaxStepsBetweenLSetup(farg1, farg2)
 swig_result = fresult
 end function
 

@@ -94,7 +94,7 @@ module farkode_arkstep_mod
  public :: FARKStepSetNonlinCRDown
  public :: FARKStepSetNonlinRDiv
  public :: FARKStepSetDeltaGammaMax
- public :: FARKStepSetMaxStepsBetweenLSet
+ public :: FARKStepSetMaxStepsBetweenLSetup
  public :: FARKStepSetPredictorMethod
  public :: FARKStepSetStabilityFn
  public :: FARKStepSetMaxErrTestFails
@@ -191,6 +191,7 @@ module farkode_arkstep_mod
  public :: FARKStepGetLinReturnFlagName
  public :: FARKStepFree
  public :: FARKStepPrintMem
+ public :: FARKStepSetMaxStepsBetweenLSet
 
 ! WRAPPER DECLARATIONS
 interface
@@ -591,8 +592,8 @@ real(C_DOUBLE), intent(in) :: farg2
 integer(C_INT) :: fresult
 end function
 
-function swigc_FARKStepSetMaxStepsBetweenLSet(farg1, farg2) &
-bind(C, name="_wrap_FARKStepSetMaxStepsBetweenLSet") &
+function swigc_FARKStepSetMaxStepsBetweenLSetup(farg1, farg2) &
+bind(C, name="_wrap_FARKStepSetMaxStepsBetweenLSetup") &
 result(fresult)
 use, intrinsic :: ISO_C_BINDING
 type(C_PTR), value :: farg1
@@ -1455,6 +1456,15 @@ type(C_PTR), value :: farg1
 type(C_PTR), value :: farg2
 end subroutine
 
+function swigc_FARKStepSetMaxStepsBetweenLSet(farg1, farg2) &
+bind(C, name="_wrap_FARKStepSetMaxStepsBetweenLSet") &
+result(fresult)
+use, intrinsic :: ISO_C_BINDING
+type(C_PTR), value :: farg1
+integer(C_INT), intent(in) :: farg2
+integer(C_INT) :: fresult
+end function
+
 end interface
 
 
@@ -2189,7 +2199,7 @@ fresult = swigc_FARKStepSetDeltaGammaMax(farg1, farg2)
 swig_result = fresult
 end function
 
-function FARKStepSetMaxStepsBetweenLSet(arkode_mem, msbp) &
+function FARKStepSetMaxStepsBetweenLSetup(arkode_mem, msbp) &
 result(swig_result)
 use, intrinsic :: ISO_C_BINDING
 integer(C_INT) :: swig_result
@@ -2201,7 +2211,7 @@ integer(C_INT) :: farg2
 
 farg1 = arkode_mem
 farg2 = msbp
-fresult = swigc_FARKStepSetMaxStepsBetweenLSet(farg1, farg2)
+fresult = swigc_FARKStepSetMaxStepsBetweenLSetup(farg1, farg2)
 swig_result = fresult
 end function
 
@@ -3757,6 +3767,22 @@ farg1 = arkode_mem
 farg2 = outfile
 call swigc_FARKStepPrintMem(farg1, farg2)
 end subroutine
+
+function FARKStepSetMaxStepsBetweenLSet(arkode_mem, msbp) &
+result(swig_result)
+use, intrinsic :: ISO_C_BINDING
+integer(C_INT) :: swig_result
+type(C_PTR) :: arkode_mem
+integer(C_INT), intent(in) :: msbp
+integer(C_INT) :: fresult 
+type(C_PTR) :: farg1 
+integer(C_INT) :: farg2 
+
+farg1 = arkode_mem
+farg2 = msbp
+fresult = swigc_FARKStepSetMaxStepsBetweenLSet(farg1, farg2)
+swig_result = fresult
+end function
 
 
 end module

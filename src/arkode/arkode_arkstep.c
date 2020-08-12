@@ -111,7 +111,7 @@ void* ARKStepCreate(ARKRhsFn fe, ARKRhsFn fi, realtype t0, N_Vector y0)
     arkProcessError(ark_mem, retval, "ARKode::ARKStep",
                     "ARKStepCreate",
                     "Error setting default solver options");
-    return(NULL);
+    ARKStepFree((void**) &ark_mem);  return(NULL);
   }
 
   /* Set implicit/explicit problem based on function pointers */
@@ -123,12 +123,12 @@ void* ARKStepCreate(ARKRhsFn fe, ARKRhsFn fi, realtype t0, N_Vector y0)
      (based on the number of ARK stages) */
 
   /* Clone the input vector to create sdata, zpred and zcor */
-  if (!arkAllocVec(ark_mem, y0, &(step_mem->sdata)))
-    return(NULL);
-  if (!arkAllocVec(ark_mem, y0, &(step_mem->zpred)))
-    return(NULL);
-  if (!arkAllocVec(ark_mem, y0, &(step_mem->zcor)))
-    return(NULL);
+  if (!arkAllocVec(ark_mem, y0, &(step_mem->sdata))) {
+    ARKStepFree((void**) &ark_mem);  return(NULL); }
+  if (!arkAllocVec(ark_mem, y0, &(step_mem->zpred))) {
+    ARKStepFree((void**) &ark_mem);  return(NULL); }
+  if (!arkAllocVec(ark_mem, y0, &(step_mem->zcor))) {
+    ARKStepFree((void**) &ark_mem);  return(NULL); }
 
   /* Copy the input parameters into ARKode state */
   step_mem->fe = fe;
@@ -146,13 +146,13 @@ void* ARKStepCreate(ARKRhsFn fe, ARKRhsFn fi, realtype t0, N_Vector y0)
     if (NLS == NULL) {
       arkProcessError(ark_mem, ARK_MEM_FAIL, "ARKode::ARKStep",
                       "ARKStepCreate", "Error creating default Newton solver");
-      return(NULL);
+      ARKStepFree((void**) &ark_mem);  return(NULL);
     }
     retval = ARKStepSetNonlinearSolver(ark_mem, NLS);
     if (retval != ARK_SUCCESS) {
       arkProcessError(ark_mem, ARK_MEM_FAIL, "ARKode::ARKStep",
                       "ARKStepCreate", "Error attaching default Newton solver");
-      return(NULL);
+      ARKStepFree((void**) &ark_mem);  return(NULL);
     }
     step_mem->ownNLS = SUNTRUE;
   }
@@ -179,10 +179,11 @@ void* ARKStepCreate(ARKRhsFn fe, ARKRhsFn fi, realtype t0, N_Vector y0)
   step_mem->eRNrm = ONE;
 
   /* Initialize all the counters */
-  step_mem->nfe     = 0;
-  step_mem->nfi     = 0;
-  step_mem->nsetups = 0;
-  step_mem->nstlp   = 0;
+  step_mem->nfe       = 0;
+  step_mem->nfi       = 0;
+  step_mem->nsetups   = 0;
+  step_mem->nstlp     = 0;
+  step_mem->nls_iters = 0;
 
   /* Initialize fused op work space */
   step_mem->cvals        = NULL;
@@ -196,11 +197,11 @@ void* ARKStepCreate(ARKRhsFn fe, ARKRhsFn fi, realtype t0, N_Vector y0)
   step_mem->nforcing   = 0;
 
   /* Initialize main ARKode infrastructure */
-  retval = arkInit(ark_mem, t0, y0);
+  retval = arkInit(ark_mem, t0, y0, FIRST_INIT);
   if (retval != ARK_SUCCESS) {
     arkProcessError(ark_mem, retval, "ARKode::ARKStep", "ARKStepCreate",
                     "Unable to initialize main ARKode infrastructure");
-    return(NULL);
+    ARKStepFree((void**) &ark_mem);  return(NULL);
   }
 
   return((void *)ark_mem);
@@ -322,9 +323,7 @@ int ARKStepResize(void *arkode_mem, N_Vector y0, realtype hscale,
   }
 
   /* reset nonlinear solver counters */
-  if (step_mem->NLS != NULL) {
-    step_mem->nsetups = 0;
-  }
+  if (step_mem->NLS != NULL)  step_mem->nsetups = 0;
 
   return(ARK_SUCCESS);
 }
@@ -334,7 +333,12 @@ int ARKStepResize(void *arkode_mem, N_Vector y0, realtype hscale,
   ARKStepReInit:
 
   This routine re-initializes the ARKStep module to solve a new
-  problem of the same size as was previously solved.
+  problem of the same size as was previously solved. This routine
+  should also be called when the problem dynamics or desired solvers
+  have changed dramatically, so that the problem integration should
+  resume as if started from scratch.
+
+  Note all internal counters are set to 0 on re-initialization.
   ---------------------------------------------------------------*/
 int ARKStepReInit(void* arkode_mem, ARKRhsFn fe,
                   ARKRhsFn fi, realtype t0, N_Vector y0)
@@ -348,14 +352,21 @@ int ARKStepReInit(void* arkode_mem, ARKRhsFn fe,
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS)  return(retval);
 
+  /* Check if ark_mem was allocated */
+  if (ark_mem->MallocDone == SUNFALSE) {
+    arkProcessError(ark_mem, ARK_NO_MALLOC, "ARKode::ARKStep",
+                    "ARKStepReInit", MSG_ARK_NO_MALLOC);
+    return(ARK_NO_MALLOC);
+  }
+
   /* Check that at least one of fe, fi is supplied and is to be used */
   if (fe == NULL && fi == NULL) {
     arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
-                    "ARKStepCreate", MSG_ARK_NULL_F);
+                    "ARKStepReInit", MSG_ARK_NULL_F);
     return(ARK_ILL_INPUT);
   }
 
-  /* Check for legal input parameters */
+  /* Check that y0 is supplied */
   if (y0 == NULL) {
     arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
                     "ARKStepReInit", MSG_ARK_NULL_Y0);
@@ -373,11 +384,11 @@ int ARKStepReInit(void* arkode_mem, ARKRhsFn fe,
   /* Initialize initial error norm  */
   step_mem->eRNrm = ONE;
 
-  /* ReInitialize main ARKode infrastructure */
-  retval = arkReInit(ark_mem, t0, y0);
+  /* Initialize main ARKode infrastructure */
+  retval = arkInit(ark_mem, t0, y0, FIRST_INIT);
   if (retval != ARK_SUCCESS) {
     arkProcessError(ark_mem, retval, "ARKode::ARKStep", "ARKStepReInit",
-                    "Unable to initialize main ARKode infrastructure");
+                    "Unable to reinitialize main ARKode infrastructure");
     return(retval);
   }
 
@@ -386,6 +397,37 @@ int ARKStepReInit(void* arkode_mem, ARKRhsFn fe,
   step_mem->nfi     = 0;
   step_mem->nsetups = 0;
   step_mem->nstlp   = 0;
+
+  return(ARK_SUCCESS);
+}
+
+
+/*---------------------------------------------------------------
+  ARKStepReset:
+
+  This routine resets the ARKStep module state to solve the same
+  problem from the given time with the input state (all counter
+  values are retained).
+  ---------------------------------------------------------------*/
+int ARKStepReset(void* arkode_mem, realtype tR, N_Vector yR)
+{
+  ARKodeMem ark_mem;
+  ARKodeARKStepMem step_mem;
+  int retval;
+
+  /* access ARKodeARKStepMem structure */
+  retval = arkStep_AccessStepMem(arkode_mem, "ARKStepReset",
+                                 &ark_mem, &step_mem);
+  if (retval != ARK_SUCCESS) return(retval);
+
+  /* Initialize main ARKode infrastructure */
+  retval = arkInit(ark_mem, tR, yR, RESET_INIT);
+
+  if (retval != ARK_SUCCESS) {
+    arkProcessError(ark_mem, retval, "ARKode::ARKStep", "ARKStepReset",
+                    "Unable to initialize main ARKode infrastructure");
+    return(retval);
+  }
 
   return(ARK_SUCCESS);
 }
@@ -681,7 +723,6 @@ void ARKStepPrintMem(void* arkode_mem, FILE* outfile)
   fprintf(outfile,"ARKStep: p = %i\n", step_mem->p);
   fprintf(outfile,"ARKStep: istage = %i\n", step_mem->istage);
   fprintf(outfile,"ARKStep: stages = %i\n", step_mem->stages);
-  fprintf(outfile,"ARKStep: mnewt = %i\n", step_mem->mnewt);
   fprintf(outfile,"ARKStep: maxcor = %i\n", step_mem->maxcor);
   fprintf(outfile,"ARKStep: msbp = %i\n", step_mem->msbp);
   fprintf(outfile,"ARKStep: predictor = %i\n", step_mem->predictor);
@@ -972,10 +1013,9 @@ int arkStep_GetGammas(void* arkode_mem, realtype *gamma,
 
   This routine is called just prior to performing internal time
   steps (after all user "set" routines have been called) from
-  within arkInitialSetup (init_type == 0) or arkPostResizeSetup
-  (init_type == 1).
+  within arkInitialSetup.
 
-  With init_type == 0, this routine:
+  With initialization type FIRST_INIT this routine:
   - sets/checks the ARK Butcher tables to be used
   - allocates any memory that depends on the number of ARK stages,
     method order, or solver options
@@ -986,19 +1026,21 @@ int arkStep_GetGammas(void* arkode_mem, realtype *gamma,
   - initializes and sets up the nonlinear solver (if applicable)
   - allocates the interpolation data structure (if needed based
     on ARKStep solver options)
+  - updates the call_fullrhs flag if necessary
 
-  With init_type == 1, this routine:
+  With initialization type FIRST_INIT or RESIZE_INIT, this routine:
   - checks for consistency between the system and mass matrix
     linear solvers (if applicable)
   - initializes and sets up the system and mass matrix linear
     solvers (if applicable)
   - initializes and sets up the nonlinear solver (if applicable)
+
+  With initialization type RESET_INIT, this routine does nothing.
   ---------------------------------------------------------------*/
 int arkStep_Init(void* arkode_mem, int init_type)
 {
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
-  sunindextype Blrw, Bliw;
   int j, retval;
   booleantype reset_efun;
 
@@ -1007,8 +1049,11 @@ int arkStep_Init(void* arkode_mem, int init_type)
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS)  return(retval);
 
-  /* perform initializations specific to init_type 0 */
-  if (init_type == 0) {
+  /* immediately return if reset */
+  if (init_type == RESET_INIT) return(ARK_SUCCESS);
+
+  /* initializations/checks for (re-)initialization call */
+  if (init_type == FIRST_INIT) {
 
     /* enforce use of arkEwtSmallReal if using a fixed step size for
        an explicit method, an internal error weight function, and not
@@ -1042,14 +1087,6 @@ int arkStep_Init(void* arkode_mem, int init_type)
                       "arkStep_Init", "Error in Butcher table(s)");
       return(ARK_ILL_INPUT);
     }
-
-    /* note Butcher table space requirements */
-    ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
-    ark_mem->liw += Bliw;
-    ark_mem->lrw += Blrw;
-    ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
-    ark_mem->liw += Bliw;
-    ark_mem->lrw += Blrw;
 
     /* Retrieve/store method and embedding orders now that tables are finalized */
     if (step_mem->Bi != NULL) {
@@ -1116,14 +1153,13 @@ int arkStep_Init(void* arkode_mem, int init_type)
       }
     }
 
-  } /* end (init_type == 0) */
-
-  /* If the bootstrap predictor is enabled, signal to shared arkode module that
-     fullrhs is required after each step */
-  if (step_mem->predictor == 4)  ark_mem->call_fullrhs = SUNTRUE;
+    /* If the bootstrap predictor is enabled, signal to shared arkode module that
+       fullrhs is required after each step */
+    if (step_mem->predictor == 4)  ark_mem->call_fullrhs = SUNTRUE;
+  }
 
   /* Check for consistency between linear system modules
-       (e.g., if lsolve is direct, msolve needs to match) */
+     (e.g., if lsolve is direct, msolve needs to match) */
   if (step_mem->mass_mem != NULL) {  /* M != I */
     if (step_mem->lsolve_type != step_mem->msolve_type) {
       arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep", "arkStep_Init",
@@ -1215,8 +1251,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
 {
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
-  int i, nvec, retval;
-  realtype tau, taui;
+  int nvec, retval;
   booleantype recomputeRHS;
   realtype* cvals;
   N_Vector* Xvecs;
@@ -1262,18 +1297,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
         cvals[0] = ONE;
         Xvecs[0] = step_mem->Fe[0];
         nvec     = 1;
-        cvals[1] = ONE;
-        Xvecs[1] = step_mem->forcing[0];
-        nvec     = 2;
-        /* compute normalized time tau and initialize tau^i */
-        tau  = (t - step_mem->tshift) / (step_mem->tscale);
-        taui = tau;
-        for (i = 1; i < step_mem->nforcing; i++) {
-          cvals[nvec] = taui;
-          Xvecs[nvec] = step_mem->forcing[i];
-          taui *= tau;
-          nvec += 1;
-        }
+        arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
         N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fe[0]);
       }
     }
@@ -1292,18 +1316,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
         cvals[0] = ONE;
         Xvecs[0] = step_mem->Fi[0];
         nvec     = 1;
-        cvals[1] = ONE;
-        Xvecs[1] = step_mem->forcing[0];
-        nvec     = 2;
-        /* compute normalized time tau and initialize tau^i */
-        tau  = (t - step_mem->tshift) / (step_mem->tscale);
-        taui = tau;
-        for (i = 1; i < step_mem->nforcing; i++) {
-          cvals[nvec] = taui;
-          Xvecs[nvec] = step_mem->forcing[i];
-          taui *= tau;
-          nvec += 1;
-        }
+        arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
         N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fi[0]);
       }
     }
@@ -1350,18 +1363,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
           cvals[0] = ONE;
           Xvecs[0] = step_mem->Fe[0];
           nvec     = 1;
-          cvals[1] = ONE;
-          Xvecs[1] = step_mem->forcing[0];
-          nvec     = 2;
-          /* compute normalized time tau and initialize tau^i */
-          tau  = (t - step_mem->tshift) / (step_mem->tscale);
-          taui = tau;
-          for (i = 1; i < step_mem->nforcing; i++) {
-            cvals[nvec] = taui;
-            Xvecs[nvec] = step_mem->forcing[i];
-            taui *= tau;
-            nvec += 1;
-          }
+          arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
           N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fe[0]);
         }
       }
@@ -1380,18 +1382,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
           cvals[0] = ONE;
           Xvecs[0] = step_mem->Fi[0];
           nvec     = 1;
-          cvals[1] = ONE;
-          Xvecs[1] = step_mem->forcing[0];
-          nvec     = 2;
-          /* compute normalized time tau and initialize tau^i */
-          tau  = (t - step_mem->tshift) / (step_mem->tscale);
-          taui = tau;
-          for (i = 1; i < step_mem->nforcing; i++) {
-            cvals[nvec] = taui;
-            Xvecs[nvec] = step_mem->forcing[i];
-            taui *= tau;
-            nvec += 1;
-          }
+          arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
           N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fi[0]);
         }
       }
@@ -1432,18 +1423,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
         cvals[0] = ONE;
         Xvecs[0] = ark_mem->tempv2;
         nvec     = 1;
-        cvals[1] = ONE;
-        Xvecs[1] = step_mem->forcing[0];
-        nvec     = 2;
-        /* compute normalized time tau and initialize tau^i */
-        tau  = (t - step_mem->tshift) / (step_mem->tscale);
-        taui = tau;
-        for (i = 1; i < step_mem->nforcing; i++) {
-          cvals[nvec] = taui;
-          Xvecs[nvec] = step_mem->forcing[i];
-          taui *= tau;
-          nvec += 1;
-        }
+        arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
         N_VLinearCombination(nvec, cvals, Xvecs, ark_mem->tempv2);
       }
     }
@@ -1462,18 +1442,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
         cvals[0] = ONE;
         Xvecs[0] = step_mem->sdata;
         nvec     = 1;
-        cvals[1] = ONE;
-        Xvecs[1] = step_mem->forcing[0];
-        nvec     = 2;
-        /* compute normalized time tau and initialize tau^i */
-        tau  = (t - step_mem->tshift) / (step_mem->tscale);
-        taui = tau;
-        for (i = 1; i < step_mem->nforcing; i++) {
-          cvals[nvec] = taui;
-          Xvecs[nvec] = step_mem->forcing[i];
-          taui *= tau;
-          nvec += 1;
-        }
+        arkStep_ApplyForcing(step_mem, t, ONE, &nvec);
         N_VLinearCombination(nvec, cvals, Xvecs, step_mem->sdata);
       }
     }
@@ -1532,8 +1501,7 @@ int arkStep_FullRHS(void* arkode_mem, realtype t,
   ---------------------------------------------------------------*/
 int arkStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
 {
-  int retval, is, i, nvec;
-  realtype tau, taui;
+  int retval, is, nvec;
   booleantype implicit_stage;
   ARKodeMem ark_mem;
   ARKodeARKStepMem step_mem;
@@ -1595,7 +1563,9 @@ int arkStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
       N_VScale(ONE, ark_mem->yn, step_mem->zpred);
     }
 
-    /* If a user-supplied predictor routine is provided, call that here */
+    /* If a user-supplied predictor routine is provided, call that here
+       Note that arkStep_Predict is *still* called, so this user-supplied 
+       routine can just 'clean up' the built-in prediction, if desired. */
     if (step_mem->stage_predict) {
       retval = step_mem->stage_predict(ark_mem->tcur, step_mem->zpred,
                                        ark_mem->user_data);
@@ -1682,18 +1652,7 @@ int arkStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
         cvals[0] = ONE;
         Xvecs[0] = step_mem->Fi[is];
         nvec     = 1;
-        cvals[1] = ONE;
-        Xvecs[1] = step_mem->forcing[0];
-        nvec     = 2;
-        /* compute normalized time tau and initialize tau^i */
-        tau  = (ark_mem->tcur - step_mem->tshift) / (step_mem->tscale);
-        taui = tau;
-        for (i = 1; i < step_mem->nforcing; i++) {
-          cvals[nvec] = taui;
-          Xvecs[nvec] = step_mem->forcing[i];
-          taui *= tau;
-          nvec += 1;
-        }
+        arkStep_ApplyForcing(step_mem, ark_mem->tcur, ONE, &nvec);
         N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fi[is]);
       }
     }
@@ -1710,19 +1669,8 @@ int arkStep_TakeStep(void* arkode_mem, realtype *dsmPtr, int *nflagPtr)
           cvals[0] = ONE;
           Xvecs[0] = step_mem->Fe[is];
           nvec     = 1;
-          cvals[1] = ONE;
-          Xvecs[1] = step_mem->forcing[0];
-          nvec     = 2;
-          /* compute normalized time tau and initialize tau^i */
-          tau  = ((ark_mem->tn + step_mem->Be->c[is]*ark_mem->h) -
-                  step_mem->tshift) / (step_mem->tscale);
-          taui = tau;
-          for (i = 1; i < step_mem->nforcing; i++) {
-            cvals[nvec] = taui;
-            Xvecs[nvec] = step_mem->forcing[i];
-            taui *= tau;
-            nvec += 1;
-          }
+          arkStep_ApplyForcing(step_mem, ark_mem->tn+step_mem->Be->c[is]*ark_mem->h,
+                               ONE, &nvec);
           N_VLinearCombination(nvec, cvals, Xvecs, step_mem->Fe[is]);
         }
     }
@@ -1814,6 +1762,7 @@ int arkStep_SetButcherTables(ARKodeMem ark_mem)
 {
   int etable, itable;
   ARKodeARKStepMem step_mem;
+  sunindextype Blrw, Bliw;
 
   /* access ARKodeARKStepMem structure */
   if (ark_mem->step_mem==NULL) {
@@ -1919,6 +1868,15 @@ int arkStep_SetButcherTables(ARKodeMem ark_mem)
   if (itable > -1)
     step_mem->Bi = ARKodeButcherTable_LoadDIRK(itable);
 
+  /* note Butcher table space requirements */
+  ARKodeButcherTable_Space(step_mem->Be, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
+
+  ARKodeButcherTable_Space(step_mem->Bi, &Bliw, &Blrw);
+  ark_mem->liw += Bliw;
+  ark_mem->lrw += Blrw;
+
   /* set [redundant] ARK stored values for stage numbers and method orders */
   if (step_mem->Be != NULL) {
     step_mem->stages = step_mem->Be->stages;
@@ -1947,7 +1905,7 @@ int arkStep_SetButcherTables(ARKodeMem ark_mem)
     embedding order q > 0 (all -- if adaptive time-stepping enabled)
     stages > 0 (all)
 
-  Returns ARK_SUCCESS if tables pass, ARK_ILL_INPUT otherwise.
+  Returns ARK_SUCCESS if tables pass, ARK_INVALID_TABLE otherwise.
   ---------------------------------------------------------------*/
 int arkStep_CheckButcherTables(ARKodeMem ark_mem)
 {
@@ -1964,46 +1922,61 @@ int arkStep_CheckButcherTables(ARKodeMem ark_mem)
   }
   step_mem = (ARKodeARKStepMem) ark_mem->step_mem;
 
+  /* check that the expected tables are set */
+  if (step_mem->explicit && step_mem->Be == NULL) {
+    arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
+                    "arkStep_CheckButcherTables",
+                    "explicit table is NULL!");
+    return(ARK_INVALID_TABLE);
+  }
+
+  if (step_mem->implicit && step_mem->Bi == NULL) {
+    arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
+                    "arkStep_CheckButcherTables",
+                    "implicit table is NULL!");
+    return(ARK_INVALID_TABLE);
+  }
+
   /* check that stages > 0 */
   if (step_mem->stages < 1) {
-    arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+    arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                     "arkStep_CheckButcherTables",
                     "stages < 1!");
-    return(ARK_ILL_INPUT);
+    return(ARK_INVALID_TABLE);
   }
 
   /* check that method order q > 0 */
   if (step_mem->q < 1) {
-    arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+    arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                     "arkStep_CheckButcherTables",
                     "method order < 1!");
-    return(ARK_ILL_INPUT);
+    return(ARK_INVALID_TABLE);
   }
 
   /* check that embedding order p > 0 */
   if ((step_mem->p < 1) && (!ark_mem->fixedstep)) {
-    arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+    arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                     "arkStep_CheckButcherTables",
                     "embedding order < 1!");
-    return(ARK_ILL_INPUT);
+    return(ARK_INVALID_TABLE);
   }
 
   /* check that embedding exists */
   if ((step_mem->p > 0) && (!ark_mem->fixedstep)) {
     if (step_mem->implicit) {
       if (step_mem->Bi->d == NULL) {
-        arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+        arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                         "arkStep_CheckButcherTables",
                         "no implicit embedding!");
-        return(ARK_ILL_INPUT);
+        return(ARK_INVALID_TABLE);
       }
     }
     if (step_mem->explicit) {
       if (step_mem->Be->d == NULL) {
-        arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+        arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                         "arkStep_CheckButcherTables",
                         "no explicit embedding!");
-        return(ARK_ILL_INPUT);
+        return(ARK_INVALID_TABLE);
       }
     }
   }
@@ -2016,10 +1989,10 @@ int arkStep_CheckButcherTables(ARKodeMem ark_mem)
         if (SUNRabs(step_mem->Be->A[i][j]) > tol)
           okay = SUNFALSE;
     if (!okay) {
-      arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+      arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                       "arkStep_CheckButcherTables",
                       "Ae Butcher table is implicit!");
-      return(ARK_ILL_INPUT);
+      return(ARK_INVALID_TABLE);
     }
   }
 
@@ -2030,10 +2003,10 @@ int arkStep_CheckButcherTables(ARKodeMem ark_mem)
       if (SUNRabs(step_mem->Bi->A[i][i]) > tol)
         okay = SUNTRUE;
     if (!okay) {
-      arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+      arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                       "arkStep_CheckButcherTables",
                       "Ai Butcher table is explicit!");
-      return(ARK_ILL_INPUT);
+      return(ARK_INVALID_TABLE);
     }
 
     okay = SUNTRUE;
@@ -2042,10 +2015,10 @@ int arkStep_CheckButcherTables(ARKodeMem ark_mem)
         if (SUNRabs(step_mem->Bi->A[i][j]) > tol)
           okay = SUNFALSE;
     if (!okay) {
-      arkProcessError(ark_mem, ARK_ILL_INPUT, "ARKode::ARKStep",
+      arkProcessError(ark_mem, ARK_INVALID_TABLE, "ARKode::ARKStep",
                       "arkStep_CheckButcherTables",
                       "Ai Butcher table has entries above diagonal!");
-      return(ARK_ILL_INPUT);
+      return(ARK_INVALID_TABLE);
     }
   }
 
@@ -2057,7 +2030,7 @@ int arkStep_CheckButcherTables(ARKodeMem ark_mem)
   arkStep_Predict
 
   This routine computes the prediction for a specific internal
-  stage solution, storing the result in ypred.  The
+  stage solution, storing the result in yguess.  The
   prediction is done using the interpolation structure in
   extrapolation mode, hence stages "far" from the previous time
   interval are predicted using lower order polynomials than the
@@ -2092,13 +2065,13 @@ int arkStep_Predict(ARKodeMem ark_mem, int istage, N_Vector yguess)
   cvals = step_mem->cvals;
   Xvecs = step_mem->Xvecs;
 
-  /* if the first step (or if resized), use initial condition as guess */
-  if (ark_mem->nst == 0 || ark_mem->resized) {
+  /* if the first step, use initial condition as guess */
+  if (ark_mem->initsetup) {
     N_VScale(ONE, ark_mem->yn, yguess);
     return(ARK_SUCCESS);
   }
 
-  /* set evaluation time tau relative shift from previous successful time */
+  /* set evaluation time tau as relative shift from previous successful time */
   tau = step_mem->Bi->c[istage]*ark_mem->h/ark_mem->hold;
 
   /* use requested predictor formula */
@@ -2240,7 +2213,6 @@ int arkStep_StageSetup(ARKodeMem ark_mem)
   /* local data */
   ARKodeARKStepMem step_mem;
   int retval, i, j, nvec;
-  realtype tau, tauj;
   realtype* cvals;
   N_Vector* Xvecs;
 
@@ -2259,23 +2231,15 @@ int arkStep_StageSetup(ARKodeMem ark_mem)
   cvals = step_mem->cvals;
   Xvecs = step_mem->Xvecs;
 
-  /* If predictor==5, then sdata=0, otherwise set sdata appropriately */
+  /* If predictor==5, then sdata=0 unless implicit polynomial forcing 
+     is applied.  Otherwise set sdata appropriately */
   if ( (step_mem->predictor == 5) && (step_mem->mass_mem == NULL) ) {
 
     /* apply external polynomial forcing */
     if (step_mem->impforcing) {
-      cvals[0] = ark_mem->h * step_mem->Bi->A[i][i];
-      Xvecs[0] = step_mem->forcing[0];
-      nvec     = 1;
-      /* compute normalized time tau and initialize tau^j */
-      tau  = (ark_mem->tcur - step_mem->tshift) / (step_mem->tscale);
-      tauj = tau;
-      for (j = 1; j < step_mem->nforcing; j++) {
-        cvals[nvec] = ark_mem->h * step_mem->Bi->A[i][i] * tauj;
-        Xvecs[nvec] = step_mem->forcing[j];
-        tauj *= tau;
-        nvec += 1;
-      }
+      nvec = 0;
+      arkStep_ApplyForcing(step_mem, ark_mem->tcur,
+                           ark_mem->h * step_mem->Bi->A[i][i], &nvec);
       N_VLinearCombination(nvec, cvals, Xvecs, step_mem->sdata);
     } else {
       N_VConst(ZERO, step_mem->sdata);
@@ -2313,18 +2277,8 @@ int arkStep_StageSetup(ARKodeMem ark_mem)
 
     /* apply external polynomial forcing */
     if (step_mem->impforcing) {
-      cvals[nvec] = ark_mem->h * step_mem->Bi->A[i][i];
-      Xvecs[nvec] = step_mem->forcing[0];
-      nvec += 1;
-      /* compute normalized time tau and initialize tau^j */
-      tau  = (ark_mem->tcur - step_mem->tshift) / (step_mem->tscale);
-      tauj = tau;
-      for (j = 1; j < step_mem->nforcing; j++) {
-        cvals[nvec] = ark_mem->h * step_mem->Bi->A[i][i] * tauj;
-        Xvecs[nvec] = step_mem->forcing[j];
-        tauj *= tau;
-        nvec += 1;
-      }
+      arkStep_ApplyForcing(step_mem, ark_mem->tcur,
+                           ark_mem->h * step_mem->Bi->A[i][i], &nvec);
     }
 
     /*   call fused vector operation to do the work */
@@ -2523,6 +2477,39 @@ int arkStep_ComputeSolutions(ARKodeMem ark_mem, realtype *dsmPtr)
 
 
 /*------------------------------------------------------------------------------
+  arkStep_ApplyForcing
+
+  Determines the linear combination coefficients and vectors to apply forcing
+  at a given value of the independent variable (t).  This occurs through 
+  appending coefficients and N_Vector pointers to the underlying cvals and Xvecs
+  arrays in the step_mem structure.  The dereferenced input *nvec should indicate
+  the next available entry in the cvals/Xvecs arrays.  The input 's' is a
+  scaling factor that should be applied to each of these coefficients.
+  ----------------------------------------------------------------------------*/
+
+void arkStep_ApplyForcing(ARKodeARKStepMem step_mem, realtype t,
+                          realtype s, int *nvec)
+{
+  realtype tau, taui;
+  int i;
+  
+  /* always append the constant forcing term */
+  step_mem->cvals[*nvec] = s;
+  step_mem->Xvecs[*nvec] = step_mem->forcing[0];
+  (*nvec) += 1;
+  
+  /* compute normalized time tau and initialize tau^i */
+  tau  = (t - step_mem->tshift) / (step_mem->tscale);
+  taui = tau;
+  for (i=1; i<step_mem->nforcing; i++) {
+    step_mem->cvals[*nvec] = s*taui;
+    step_mem->Xvecs[*nvec] = step_mem->forcing[i];
+    taui *= tau;
+    (*nvec) += 1;
+  }
+}
+
+/*------------------------------------------------------------------------------
   arkStep_SetInnerForcing
 
   Sets an array of coefficient vectors for a time-dependent external polynomial
@@ -2545,19 +2532,19 @@ int arkStep_SetInnerForcing(void* arkode_mem, realtype tshift, realtype tscale,
   int retval;
 
   /* access ARKodeARKStepMem structure */
-  retval = arkStep_AccessStepMem(arkode_mem, "ARKStepResize",
+  retval = arkStep_AccessStepMem(arkode_mem, "arkStep_SetInnerForcing",
                                  &ark_mem, &step_mem);
   if (retval != ARK_SUCCESS) return(retval);
 
   if (nvecs > 0) {
 
     /* enable forcing */
-    if (step_mem->implicit) {
-      step_mem->expforcing = SUNFALSE;
-      step_mem->impforcing = SUNTRUE;
-    } else {
+    if (step_mem->explicit) {
       step_mem->expforcing = SUNTRUE;
       step_mem->impforcing = SUNFALSE;
+    } else {
+      step_mem->expforcing = SUNFALSE;
+      step_mem->impforcing = SUNTRUE;
     }
     step_mem->tshift   = tshift;
     step_mem->tscale   = tscale;

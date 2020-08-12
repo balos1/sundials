@@ -52,15 +52,9 @@ set(IDAS_examples_SUPERLUMT
   "idasRoberts_FSA_sps\;-sensi stg t\;develop"
   )
 
-# Specify libraries to link against (through the target that was used to
-# generate them) based on the value of the variable LINK_LIBRARY_TYPE
-if(LINK_LIBRARY_TYPE MATCHES "static")
-  set(IDAS_LIB sundials_idas_static)
-  set(NVECS_LIB sundials_nvecserial_static)
-else()
-  set(IDAS_LIB sundials_idas_shared)
-  set(NVECS_LIB sundials_nvecserial_shared)
-endif()
+# Specify libraries to link against
+set(IDAS_LIB sundials_idas)
+set(NVECS_LIB sundials_nvecserial)
 
 # Set-up linker flags and link libraries
 set(SUNDIALS_LIBS ${IDAS_LIB} ${NVECS_LIB} ${EXTRA_LINK_LIBS})
@@ -114,18 +108,12 @@ endforeach(example_tuple ${IDAS_examples})
 
 
 # Add the build and install targets for each LAPACK example (if needed)
-if(LAPACK_FOUND)
+if(BUILD_SUNLINSOL_LAPACKBAND AND BUILD_SUNLINSOL_LAPACKDENSE)
 
   # Sundials LAPACK linear solver modules
-  if(LINK_LIBRARY_TYPE MATCHES "static")
-    set(SUNLINSOLLAPACK_LIBS
-      sundials_sunlinsollapackband_static
-      sundials_sunlinsollapackdense_static)
-  else()
-    set(SUNLINSOLLAPACK_LIBS
-      sundials_sunlinsollapackband_shared
-      sundials_sunlinsollapackdense_shared)
-  endif()
+  set(SUNLINSOLLAPACK_LIBS
+    sundials_sunlinsollapackband
+    sundials_sunlinsollapackdense)
 
   # LAPACK libraries
   list(APPEND SUNLINSOLLAPACK_LIBS ${LAPACK_LIBRARIES})
@@ -133,7 +121,7 @@ if(LAPACK_FOUND)
   # BLAS libraries
   if(BLAS_FOUND)
     list(APPEND SUNLINSOLLAPACK_LIBS ${BLAS_LIBRARIES})
-  endif(BLAS_FOUND)
+  endif()
 
   foreach(example_tuple ${IDAS_examples_BL})
 
@@ -180,21 +168,17 @@ if(LAPACK_FOUND)
 
   endforeach(example_tuple ${IDAS_examples_BL})
 
-endif(LAPACK_FOUND)
+endif()
 
 
 # Add the build and install targets for each KLU example (if needed)
-if(KLU_FOUND)
+if(BUILD_SUNLINSOL_KLU)
 
   # Sundials KLU linear solver module
-  if(LINK_LIBRARY_TYPE MATCHES "static")
-    set(SUNLINSOLKLU_LIBS sundials_sunlinsolklu_static)
-  else()
-    set(SUNLINSOLKLU_LIBS sundials_sunlinsolklu_shared)
-  endif()
+  set(SUNLINSOLKLU_LIBS sundials_sunlinsolklu)
 
   # KLU libraries
-  list(APPEND SUNLINSOLKLU_LIBS ${KLU_LIBRARIES})
+  list(APPEND SUNLINSOLKLU_LIBS)
 
   foreach(example_tuple ${IDAS_examples_KLU})
 
@@ -241,18 +225,14 @@ if(KLU_FOUND)
 
   endforeach(example_tuple ${IDAS_examples_KLU})
 
-endif(KLU_FOUND)
+endif()
 
 
 # Add the build and install targets for each SuperLU_MT example (if needed)
-if(SUPERLUMT_FOUND)
+if(BUILD_SUNLINSOL_SUPERLUMT)
 
   # Sundials SuperLU_MT linear solver module
-  if(LINK_LIBRARY_TYPE MATCHES "static")
-    set(SUNLINSOLSLUMT_LIBS sundials_sunlinsolsuperlumt_static)
-  else()
-    set(SUNLINSOLSLUMT_LIBS sundials_sunlinsolsuperlumt_shared)
-  endif()
+  set(SUNLINSOLSLUMT_LIBS sundials_sunlinsolsuperlumt)
 
   # SuperLU_MT libraries
   list(APPEND SUNLINSOLSLUMT_LIBS ${SUPERLUMT_LIBRARIES})
@@ -260,7 +240,7 @@ if(SUPERLUMT_FOUND)
   # BLAS libraries
   if(BLAS_FOUND)
     list(APPEND SUNLINSOLSLUMT_LIBS ${BLAS_LIBRARIES})
-  endif(BLAS_FOUND)
+  endif()
 
   foreach(example_tuple ${IDAS_examples_SUPERLUMT})
 
@@ -315,7 +295,7 @@ if(SUPERLUMT_FOUND)
 
   endforeach(example_tuple ${IDAS_examples_SUPERLUMT})
 
-endif(SUPERLUMT_FOUND)
+endif()
 
 
 
@@ -330,19 +310,19 @@ if(EXAMPLES_INSTALL)
 
   examples2string(IDAS_examples EXAMPLES)
 
-  if(LAPACK_FOUND)
+  if(BUILD_SUNLINSOL_LAPACKBAND AND BUILD_SUNLINSOL_LAPACKDENSE)
     examples2string(IDAS_examples_BL EXAMPLES_BL)
   else()
     set(EXAMPLES_BL "")
   endif()
 
-  if(KLU_FOUND)
+  if(BUILD_SUNLINSOL_KLU)
     examples2string(IDAS_examples_KLU EXAMPLES_KLU)
   else()
     set(EXAMPLES_KLU "")
   endif()
 
-  if(SUPERLUMT_FOUND)
+  if(BUILD_SUNLINSOL_SUPERLUMT)
     examples2string(IDAS_examples_SUPERLUMT EXAMPLES_SLUMT)
     if (SUNDIALS_SUPERLUMT_THREAD_TYPE STREQUAL "PTHREAD")
       set(THREAD_LIBRARY_SLUMT ${CMAKE_THREAD_LIBS_INIT})
@@ -388,9 +368,9 @@ if(EXAMPLES_INSTALL)
       DESTINATION ${EXAMPLES_INSTALL_PATH}/idas/serial
       RENAME Makefile
       )
-  endif(UNIX)
+  endif()
 
   # add test_install target
   sundials_add_test_install(idas serial EXECUTABLE idasRoberts_dns)
 
-endif(EXAMPLES_INSTALL)
+endif()

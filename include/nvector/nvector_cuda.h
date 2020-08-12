@@ -53,7 +53,7 @@ extern "C" {
  * -----------------------------------------------------------------
  */
 
-struct _N_VectorContent_Cuda 
+struct _N_VectorContent_Cuda
 {
     sunindextype       length;
     booleantype        own_data;
@@ -94,8 +94,8 @@ SUNDIALS_EXPORT void N_VCopyFromDevice_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VPrint_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VPrintFile_Cuda(N_Vector v, FILE *outfile);
 
- /* DEPRECATED (to be removed in SUNDIALS v6): use N_VSetKerrnelExecPolicy_Cuda instead */ 
-SUNDIALS_DEPRECATED void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
+ /* DEPRECATED (to be removed in SUNDIALS v6): use N_VSetKerrnelExecPolicy_Cuda instead */
+SUNDIALS_DEPRECATED_EXPORT void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 
 
 /*

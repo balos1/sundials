@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------
+# Programmer(s): Cody J. Balos @ LLNL
+# ---------------------------------------------------------------
+# SUNDIALS Copyright Start
+# Copyright (c) 2002-2019, Lawrence Livermore National Security
+# and Southern Methodist University.
+# All rights reserved.
+#
+# See the top-level LICENSE and NOTICE files for details.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# SUNDIALS Copyright End
+# ---------------------------------------------------------------
+
+include(CMakeFindDependencyMacro)
+include("${CMAKE_CURRENT_LIST_DIR}/SUNDIALSTargets.cmake")
+
+
+### ------- Create TPL imported targets
+
+if(@ENABLE_HYPRE@ AND NOT TARGET HYPRE::HYPRE)
+  add_library(HYPRE::HYPRE INTERFACE IMPORTED GLOBAL)
+  target_link_libraries(HYPRE::HYPRE INTERFACE @HYPRE_LIBRARIES@)
+  set_target_properties(HYPRE::HYPRE PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @HYPRE_INCLUDE_DIR@)
+endif()
+
+if(@ENABLE_KLU@ AND NOT TARGET KLU::KLU)
+  add_library(KLU::KLU INTERFACE IMPORTED GLOBAL)
+  target_link_libraries(KLU::KLU INTERFACE @KLU_LIBRARIES@)
+  set_target_properties(KLU::KLU PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @KLU_INCLUDE_DIR@)
+endif()
+
+if(@ENABLE_SUPERLUDIST@ AND NOT TARGET SUPERLUDIST::SUPERLUDIST)
+  add_library(SUPERLUDIST::SUPERLUDIST INTERFACE IMPORTED GLOBAL)
+  target_link_libraries(SUPERLUDIST::SUPERLUDIST INTERFACE @SUPERLUDIST_LIBRARIES@)
+  set_target_properties(SUPERLUDIST::SUPERLUDIST PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @SUPERLUDIST_INCLUDE_DIR@)
+endif()
+
+if(@ENABLE_SUPERLUMT@ AND NOT TARGET SUPERLUMT::SUPERLUMT)
+  add_library(SUPERLUMT::SUPERLUMT INTERFACE IMPORTED GLOBAL)
+  target_link_libraries(SUPERLUMT::SUPERLUMT INTERFACE @SUPERLUMT_LIBRARIES@)
+  set_target_properties(SUPERLUMT::SUPERLUMT PROPERTIES INTERFACE_INCLUDE_DIRECTORIES @SUPERLUMT_INCLUDE_DIR@)
+endif()
+
+if(@ENABLE_PETSC@)
+  foreach(suffix SYS VEC MAT DM KSP SNES TS ALL)
+    if(NOT TARGET PETSC::${suffix})
+      add_library(PETSC::${suffix} UNKNOWN IMPORTED)
+      # add properties one-by-one for easier debugging
+      set_target_properties(PETSC::${suffix} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES @PETSC_INCLUDES_@)
+      set_target_properties(PETSC::${suffix} PROPERTIES
+        INTERFACE_LINK_LIBRARIES @PETSC_LIBRARIES_@)
+      set_target_properties(PETSC::${suffix} PROPERTIES
+        INTERFACE_COMPILE_OPTIONS @PETSC_DEFINITIONS@)
+      set_target_properties(PETSC::${suffix} PROPERTIES
+        IMPORTED_LOCATION @PETSC_LIBRARY_SINGLE@)
+    endif()
+  endforeach()
+endif()

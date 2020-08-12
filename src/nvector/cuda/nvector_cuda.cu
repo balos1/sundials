@@ -27,7 +27,7 @@
 #include "sundials_cuda.h"
 #include "sundials_debug.h"
 
-#define ZERO RCONST(0.0) 
+#define ZERO RCONST(0.0)
 #define HALF RCONST(0.5)
 
 extern "C" {
@@ -71,7 +71,7 @@ static void FreeReductionBuffer(N_Vector v);
 static int CopyReductionBufferFromDevice(N_Vector v, size_t n = 1);
 static int GetKernelParameters(N_Vector v, booleantype reduction, size_t& grid, size_t& block,
                                size_t& shMemSize, cudaStream_t& stream, size_t n = 0);
-static void PostKernelLaunch();                               
+static void PostKernelLaunch();
 
 /* ----------------------------------------------------------------
  * Returns vector type ID. Used to identify vector implementation
@@ -164,7 +164,7 @@ N_Vector N_VNewEmpty_Cuda()
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
-  
+
   return(v);
 }
 
@@ -395,7 +395,7 @@ void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream)
 {
   const CudaExecPolicy* xs = NVEC_CUDA_CONTENT(x)->stream_exec_policy;
   const CudaExecPolicy* xr = NVEC_CUDA_CONTENT(x)->reduce_exec_policy;
-  CudaThreadDirectExecPolicy* s = 
+  CudaThreadDirectExecPolicy* s =
     new CudaThreadDirectExecPolicy(xs->blockSize(), *stream);
   CudaBlockReduceExecPolicy* r =
     new CudaBlockReduceExecPolicy(xr->blockSize(), xr->gridSize(), *stream);
@@ -753,7 +753,7 @@ realtype N_VDotProd_Cuda(N_Vector X, N_Vector Y)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VDotProd_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -780,7 +780,7 @@ realtype N_VMaxNorm_Cuda(N_Vector X)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VMaxNorm_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -806,7 +806,7 @@ realtype N_VWSqrSumLocal_Cuda(N_Vector X, N_Vector W)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VWSqrSumLocal_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -839,7 +839,7 @@ realtype N_VWSqrSumMaskLocal_Cuda(N_Vector X, N_Vector W, N_Vector Id)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VWSqrSumMaskLocal_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -875,7 +875,7 @@ realtype N_VMin_Cuda(N_Vector X)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, maxVal)) 
+  if (InitializeReductionBuffer(X, maxVal))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VMin_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -908,7 +908,7 @@ realtype N_VL1Norm_Cuda(N_Vector X)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VL1Norm_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -950,7 +950,7 @@ booleantype N_VInvTest_Cuda(N_Vector X, N_Vector Z)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VInvTest_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -977,7 +977,7 @@ booleantype N_VConstrMask_Cuda(N_Vector C, N_Vector X, N_Vector M)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(X, ZERO)) 
+  if (InitializeReductionBuffer(X, ZERO))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VConstrMask_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -1007,7 +1007,7 @@ realtype N_VMinQuotient_Cuda(N_Vector num, N_Vector denom)
   size_t grid, block, shMemSize;
   cudaStream_t stream;
 
-  if (InitializeReductionBuffer(num, maxVal)) 
+  if (InitializeReductionBuffer(num, maxVal))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in N_VMinQuotient_Cuda: InitializeReductionBuffer returned nonzero\n");
   }
@@ -1170,7 +1170,7 @@ int N_VDotProdMulti_Cuda(int nvec, N_Vector X, N_Vector* Y, realtype* dots)
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
-  
+
   if (GetKernelParameters(X, false, grid, block, shMemSize, stream)) return -1;
   grid = nvec;
 
@@ -1419,7 +1419,7 @@ int N_VWrmsNormVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
-  
+
   if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return -1;
   grid = nvec;
 
@@ -1493,7 +1493,7 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   // Set kernel parameters
   size_t grid, block, shMemSize;
   cudaStream_t stream;
-  
+
   if (GetKernelParameters(X[0], true, grid, block, shMemSize, stream)) return -1;
   grid = nvec;
 
@@ -1939,7 +1939,7 @@ int AllocateData(N_Vector v)
       SUNDIALS_DEBUG_PRINT("ERROR in AllocateData: user provided allocator function failed\n");
       return -1;
     }
-  } 
+  }
   else if (vcp->use_managed_mem)
   {
     err = cudaMallocManaged((void**) &vc->device_data, NVEC_CUDA_MEMSIZE(v));
@@ -1964,7 +1964,7 @@ int AllocateData(N_Vector v)
   return 0;
 }
 
-/* 
+/*
  * Initializes the internal buffer used for reductions.
  * If the buffer is already allocated, it will only be reallocated
  * if it is no longer large enough. This may occur if the length
@@ -1994,7 +1994,7 @@ int InitializeReductionBuffer(N_Vector v, const realtype value)
     return 0;
   }
 
-  if (vcp->userallocfn != nullptr)
+  if (vcp->userallocfn != NULL)
   {
     vcp->reduce_buffer_dev = (realtype*) vcp->userallocfn(bytes);
     if (vcp->reduce_buffer_dev == NULL)
@@ -2057,9 +2057,9 @@ void FreeReductionBuffer(N_Vector v)
     /* managed memory */
     if (vcp->userfreefn)
     {
-      if (vcp->reduce_buffer_dev != NULL) 
+      if (vcp->reduce_buffer_dev != NULL)
         vcp->userfreefn(vcp->reduce_buffer_dev);
-    } 
+    }
     else
     {
       if (vcp->reduce_buffer_dev != NULL)
@@ -2094,7 +2094,7 @@ int CopyReductionBufferFromDevice(N_Vector v, size_t n)
       still need to synchronize the device to adhere to the unified
       memory access rules. */
   if (NVEC_CUDA_PRIVATE(v)->use_managed_mem)
-  { 
+  {
     err = cudaStreamSynchronize(NVEC_CUDA_STREAM(v));
   }
   else

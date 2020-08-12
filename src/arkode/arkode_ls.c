@@ -1834,7 +1834,7 @@ int arkLsDenseDQJac(realtype t, N_Vector y, N_Vector fy,
   int          retval = 0;
 
   /* access matrix dimension */
-  N = SUNDenseMatrix_Rows(Jac);
+  N = SUNDenseMatrix_Columns(Jac);
 
   /* Rename work vector for readibility */
   ftemp = tmp1;
@@ -2330,11 +2330,11 @@ int arkLsSetup(void* arkode_mem, int convfail, realtype tpred,
     return(arkls_mem->last_flag);
   }
 
-  /* Use nst, gamma/gammap, and convfail to set J/P eval. flag jok;
+  /* Use initsetup, gamma/gammap, and convfail to set J/P eval. flag jok;
      Note: the "ARK_FAIL_BAD_J" test is asking whether the nonlinear
      solver converged due to a bad system Jacobian AND our gamma was
      fine, indicating that the J and/or P were invalid */
-  arkls_mem->jbad = (ark_mem->nst == 0) ||
+  arkls_mem->jbad = (ark_mem->initsetup) ||
     (ark_mem->nst > arkls_mem->nstlj + arkls_mem->msbj) ||
     ((convfail == ARK_FAIL_BAD_J) && (!dgamma_fail)) ||
     (convfail == ARK_FAIL_OTHER);
@@ -2869,8 +2869,8 @@ int arkLsMassSolve(void *arkode_mem, N_Vector b, realtype nlscoef)
   /* Set scaling vectors for LS to use (if applicable) */
   if (arkls_mem->LS->ops->setscalingvectors) {
     retval = SUNLinSolSetScalingVectors(arkls_mem->LS,
-                                        ark_mem->ewt,
-                                        ark_mem->rwt);
+                                        ark_mem->rwt,
+                                        ark_mem->ewt);
     if (retval != SUNLS_SUCCESS) {
       arkProcessError(ark_mem, ARKLS_SUNLS_FAIL, "ARKLS", "arkLsMassSolve",
                       "Error in call to SUNLinSolSetScalingVectors");

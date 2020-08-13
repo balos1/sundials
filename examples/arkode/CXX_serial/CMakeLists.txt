@@ -52,6 +52,8 @@ foreach(example_tuple ${ARKODE_examples})
 
     set_target_properties(${example} PROPERTIES FOLDER "Examples")
 
+    target_compile_features(${example} PRIVATE cxx_std_11)
+
     # libraries to link against
     target_link_libraries(${example} ${SUNDIALS_LIBS})
   endif()

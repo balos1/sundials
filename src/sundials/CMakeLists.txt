@@ -79,17 +79,20 @@ sundials_add_library(sundials_generic
 include(GenerateExportHeader)
 if(BUILD_STATIC_LIBS AND BUILD_SHARED_LIBS)
   generate_export_header(
-    sundials_generic BASE_NAME SUNDIALS EXPORT_FILE_NAME
+    sundials_generic BASE_NAME SUNDIALS
+    EXPORT_FILE_NAME
     "${PROJECT_BINARY_DIR}/include/sundials/sundials_export.h"
   )
 elseif(BUILD_SHARED_LIBS)
   generate_export_header(
-    sundials_generic BASE_NAME SUNDIALS EXPORT_FILE_NAME
+    sundials_generic BASE_NAME SUNDIALS
+    EXPORT_FILE_NAME
     "${PROJECT_BINARY_DIR}/include/sundials/sundials_export.h"
   )
 elseif(BUILD_STATIC_LIBS)
   generate_export_header(
-    sundials_generic${_STATIC_LIB_SUFFIX} BASE_NAME SUNDIALS EXPORT_FILE_NAME
+    sundials_generic${_STATIC_LIB_SUFFIX} BASE_NAME SUNDIALS
+    EXPORT_FILE_NAME
     "${PROJECT_BINARY_DIR}/include/sundials/sundials_export.h"
   )
 endif()

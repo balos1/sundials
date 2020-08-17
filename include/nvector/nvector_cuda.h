@@ -70,6 +70,8 @@ SUNDIALS_DEPRECATED N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype lengt
 SUNDIALS_EXPORT sunindextype N_VGetLength_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetHostArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
+SUNDIALS_EXPORT void N_VSetHostArrayPointer_Cuda(realtype* h_vdata, N_Vector v);
+SUNDIALS_EXPORT void N_VSetDeviceArrayPointer_Cuda(realtype* d_vdata, N_Vector v);
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);
 SUNDIALS_EXPORT int N_VSetKernelExecPolicy_Cuda(N_Vector x,
                                                 SUNCudaExecPolicy* stream_exec_policy,

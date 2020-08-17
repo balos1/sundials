@@ -269,9 +269,6 @@ N_Vector N_VNewCustom_Cuda(sunindextype length, SUNMemoryHelper helper)
     return(NULL);
   }
 
-  NVEC_CUDA_PRIVATE(v)->use_managed_mem =
-    (NVEC_CUDA_CONTENT(v)->host_data->type == SUNMEMTYPE_UVM);
-
   return(v);
 }
 
@@ -284,8 +281,9 @@ N_Vector N_VNewManaged_Cuda(sunindextype length)
   if (v == NULL) return(NULL);
 
   /* if using managed memory, we can attach an operation for
-     nvgetarraypointer since the host and device pointers are the same */
+     nv<get|set>arraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
+  v->ops->nvsetarraypointer = N_VSetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
@@ -345,8 +343,9 @@ N_Vector N_VMakeManaged_Cuda(sunindextype length, realtype *vdata)
   if (v == NULL) return(NULL);
 
   /* if using managed memory, we can attach an operation for
-     nvgetarraypointer since the host and device pointers are the same */
+     nv<get|set>arraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
+  v->ops->nvsetarraypointer = N_VSetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
   NVEC_CUDA_CONTENT(v)->host_data                     = SUNMemoryHelper_Wrap(vdata, SUNMEMTYPE_UVM);
@@ -374,8 +373,9 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
   if (v == NULL) return(NULL);
 
   /* if using managed memory, we can attach an operation for
-     nvgetarraypointer since the host and device pointers are the same */
+     nv<get|set>arraypointer since the host and device pointers are the same */
   v->ops->nvgetarraypointer = N_VGetHostArrayPointer_Cuda;
+  v->ops->nvsetarraypointer = N_VSetHostArrayPointer_Cuda;
 
   NVEC_CUDA_CONTENT(v)->length                        = length;
   NVEC_CUDA_CONTENT(v)->host_data                     = NULL;
@@ -435,6 +435,70 @@ realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
     return(NULL);
   else
     return ((realtype*) NVEC_CUDA_CONTENT(x)->device_data->ptr);
+}
+
+/* ----------------------------------------------------------------------------
+ * Set pointer to the raw host data. Does not free the existing pointer.
+ */
+
+void N_VSetHostArrayPointer_Cuda(realtype* h_vdata, N_Vector v)
+{
+  if (N_VIsManagedMemory_Cuda(v))
+  {
+    if (NVEC_CUDA_CONTENT(v)->host_data)
+    {
+      NVEC_CUDA_CONTENT(v)->host_data->ptr = (void*) h_vdata;
+      NVEC_CUDA_CONTENT(v)->device_data->ptr = (void*) h_vdata;
+    }
+    else
+    {
+      NVEC_CUDA_CONTENT(v)->host_data = SUNMemoryHelper_Wrap((void*) h_vdata, SUNMEMTYPE_UVM);
+      NVEC_CUDA_CONTENT(v)->device_data = SUNMemoryHelper_Alias(NVEC_CUDA_CONTENT(v)->host_data);
+    }
+  }
+  else
+  {
+    if (NVEC_CUDA_CONTENT(v)->host_data)
+    {
+      NVEC_CUDA_CONTENT(v)->host_data->ptr = (void*) h_vdata;
+    }
+    else
+    {
+      NVEC_CUDA_CONTENT(v)->host_data = SUNMemoryHelper_Wrap((void*) h_vdata, SUNMEMTYPE_HOST);
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------------
+ * Set pointer to the raw device data
+ */
+
+void N_VSetDeviceArrayPointer_Cuda(realtype* d_vdata, N_Vector v)
+{
+  if (N_VIsManagedMemory_Cuda(v))
+  {
+    if (NVEC_CUDA_CONTENT(v)->device_data)
+    {
+      NVEC_CUDA_CONTENT(v)->device_data->ptr = (void*) d_vdata;
+      NVEC_CUDA_CONTENT(v)->host_data->ptr = (void*) d_vdata;
+    }
+    else
+    {
+      NVEC_CUDA_CONTENT(v)->device_data = SUNMemoryHelper_Wrap((void*) d_vdata, SUNMEMTYPE_UVM);
+      NVEC_CUDA_CONTENT(v)->host_data = SUNMemoryHelper_Alias(NVEC_CUDA_CONTENT(v)->device_data);
+    }
+  }
+  else
+  {
+    if (NVEC_CUDA_CONTENT(v)->device_data)
+    {
+      NVEC_CUDA_CONTENT(v)->device_data->ptr = (void*) d_vdata;
+    }
+    else
+    {
+      NVEC_CUDA_CONTENT(v)->device_data = SUNMemoryHelper_Wrap((void*) d_vdata, SUNMEMTYPE_DEVICE);
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------------
@@ -1993,6 +2057,8 @@ int AllocateData(N_Vector v)
 {
   N_VectorContent_Cuda vc = NVEC_CUDA_CONTENT(v);
   N_PrivateVectorContent_Cuda vcp = NVEC_CUDA_PRIVATE(v);
+
+  if (N_VGetLength_Cuda(v) == 0) return(0);
 
   if (vcp->use_managed_mem)
   {

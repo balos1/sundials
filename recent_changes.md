@@ -41,6 +41,11 @@ and `CVodeF` and functions.
 The `NVECTOR_TRILINOS` module has been updated to work with Trilinos 12.18+.
 This update changes the local ordinal type to always be an `int`.
 
+In CVODE and CVODES the new set function `CVodeSetMaxStepsBetweenLSetup` has
+been added to set the frequency of calls to the linear solver setup function
+and in ARKODE the function `ARKStepSetMaxStepsBetweenLSet` has been depreated
+and replaced with `ARKStepSetMaxStepsBetweenLSetup`.
+
 
 ## Changes to SUNDIALS in release 5.3.0
 

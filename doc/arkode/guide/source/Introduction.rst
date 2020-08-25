@@ -141,6 +141,9 @@ subject to change from version to version.
 The ``NVECTOR_TRILINOS`` module has been updated to work with Trilinos 12.18+.
 This update changes the local ordinal type to always be an ``int``.
 
+The function :c:func:`ARKStepSetMaxStepsBetweenLSet` has been depreated and
+replaced with :c:func:`ARKStepSetMaxStepsBetweenLSetup`.
+
 
 Changes in v4.3.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

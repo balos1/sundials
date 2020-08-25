@@ -34,7 +34,7 @@ extern "C" {
                on the nonlinear iteration is multiplied to get
                a tolerance on the linear iteration
   ---------------------------------------------------------------*/
-#define ARKLS_MSBJ   51
+#define ARKLS_MSBJ   50
 #define ARKLS_EPLIN  RCONST(0.05)
 
 

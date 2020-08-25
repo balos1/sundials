@@ -54,7 +54,7 @@ c1 (bot.left/middle/top rt.) =    2.707e-16     1.899e-17     2.156e-15
 c2 (bot.left/middle/top rt.) =    3.352e+11     9.106e+11     4.163e+11
 
 
-Final Statistics.. 
+Final Statistics..
 
 lenrw   =  2689     leniw   =    53
 lenrwls =  2454     leniwls =    42
@@ -86,7 +86,7 @@ t = 2.16e+04   no. steps = 279   order = 5   stepsize = 3.58e+02
 c1 (bot.left/middle/top rt.) =    2.665e+07     1.036e+07     2.931e+07
 c2 (bot.left/middle/top rt.) =    2.993e+11     1.028e+11     3.313e+11
 
-t = 2.88e+04   no. steps = 303   order = 5   stepsize = 2.67e+02
+t = 2.88e+04   no. steps = 303   order = 5   stepsize = 2.69e+02
 c1 (bot.left/middle/top rt.) =    8.702e+06     1.292e+07     9.650e+06
 c2 (bot.left/middle/top rt.) =    3.380e+11     5.029e+11     3.751e+11
 
@@ -94,45 +94,44 @@ t = 3.60e+04   no. steps = 329   order = 5   stepsize = 1.16e+02
 c1 (bot.left/middle/top rt.) =    1.404e+04     2.029e+04     1.561e+04
 c2 (bot.left/middle/top rt.) =    3.387e+11     4.894e+11     3.765e+11
 
-t = 4.32e+04   no. steps = 381   order = 4   stepsize = 4.67e+02
-c1 (bot.left/middle/top rt.) =    8.674e-09     7.020e-09     9.676e-09
+t = 4.32e+04   no. steps = 381   order = 4   stepsize = 4.70e+02
+c1 (bot.left/middle/top rt.) =    1.237e-08     9.990e-09     1.380e-08
 c2 (bot.left/middle/top rt.) =    3.382e+11     1.355e+11     3.804e+11
 
-t = 5.04e+04   no. steps = 398   order = 4   stepsize = 3.23e+02
-c1 (bot.left/middle/top rt.) =    3.531e-15    -4.895e-12    -1.356e-13
+t = 5.04e+04   no. steps = 399   order = 5   stepsize = 3.73e+02
+c1 (bot.left/middle/top rt.) =   -7.122e-12    -1.493e-09    -1.525e-11
 c2 (bot.left/middle/top rt.) =    3.358e+11     4.930e+11     3.864e+11
 
-t = 5.76e+04   no. steps = 411   order = 5   stepsize = 4.75e+02
-c1 (bot.left/middle/top rt.) =    1.279e-13    -4.506e-11    -1.318e-12
+t = 5.76e+04   no. steps = 412   order = 5   stepsize = 4.05e+02
+c1 (bot.left/middle/top rt.) =    5.036e-11     3.586e-09     4.279e-11
 c2 (bot.left/middle/top rt.) =    3.320e+11     9.650e+11     3.909e+11
 
-t = 6.48e+04   no. steps = 423   order = 5   stepsize = 7.28e+02
-c1 (bot.left/middle/top rt.) =   -1.113e-17     6.813e-16     1.742e-17
+t = 6.48e+04   no. steps = 422   order = 5   stepsize = 7.00e+02
+c1 (bot.left/middle/top rt.) =    2.596e-15     2.033e-13     2.179e-15
 c2 (bot.left/middle/top rt.) =    3.313e+11     8.922e+11     3.963e+11
 
-t = 7.20e+04   no. steps = 433   order = 5   stepsize = 7.28e+02
-c1 (bot.left/middle/top rt.) =   -1.369e-20     3.565e-21    -5.202e-25
+t = 7.20e+04   no. steps = 432   order = 5   stepsize = 7.00e+02
+c1 (bot.left/middle/top rt.) =    2.504e-21     1.953e-17    -1.922e-19
 c2 (bot.left/middle/top rt.) =    3.330e+11     6.186e+11     4.039e+11
 
-t = 7.92e+04   no. steps = 443   order = 5   stepsize = 7.28e+02
-c1 (bot.left/middle/top rt.) =    1.471e-20    -1.150e-20    -1.118e-25
+t = 7.92e+04   no. steps = 443   order = 5   stepsize = 7.00e+02
+c1 (bot.left/middle/top rt.) =    7.163e-21    -1.766e-17    -1.143e-18
 c2 (bot.left/middle/top rt.) =    3.334e+11     6.669e+11     4.120e+11
 
-t = 8.64e+04   no. steps = 452   order = 5   stepsize = 7.28e+02
-c1 (bot.left/middle/top rt.) =    1.949e-20    -1.947e-21     1.946e-25
+t = 8.64e+04   no. steps = 453   order = 5   stepsize = 7.00e+02
+c1 (bot.left/middle/top rt.) =   -4.338e-20    -4.192e-18     6.798e-18
 c2 (bot.left/middle/top rt.) =    3.352e+11     9.106e+11     4.163e+11
 
 
-Final Statistics.. 
+Final Statistics..
 
 lenrw   =  2689     leniw   =    53
 lenrwls =  2454     leniwls =    42
 lenrwbp =  2800     leniwbp =   622
-nst     =   452
-nfe     =   570     nfetot  =  1335
-nfeLS   =   725     nfeBP   =    40
-nni     =   567     nli     =   725
-nsetups =    74     netf    =    23
-npe     =     8     nps     =  1199
+nst     =   453
+nfe     =   573     nfetot  =  1319
+nfeLS   =   706     nfeBP   =    40
+nni     =   570     nli     =   706
+nsetups =    76     netf    =    24
+npe     =     8     nps     =  1182
 ncfn    =     0     ncfl    =     0
-

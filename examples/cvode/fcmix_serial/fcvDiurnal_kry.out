@@ -28,36 +28,36 @@ Krylov example problem:
   c2 (bot.left/middle/top rt.) =   0.338233E+12  0.135487E+12  0.380352E+12
 
  t =   0.504E+05   nst =   403  q =  4  h =   0.277279E+03
-  c1 (bot.left/middle/top rt.) =  -0.266960E-07 -0.450968E-05 -0.267202E-07
+  c1 (bot.left/middle/top rt.) =  -0.131243E-07 -0.631866E-05 -0.227365E-08
   c2 (bot.left/middle/top rt.) =   0.335816E+12  0.493033E+12  0.386445E+12
 
- t =   0.576E+05   nst =   419  q =  5  h =   0.344023E+03
-  c1 (bot.left/middle/top rt.) =  -0.114670E-08 -0.587145E-07 -0.219472E-08
-  c2 (bot.left/middle/top rt.) =   0.332031E+12  0.964981E+12  0.390900E+12
+ t =   0.576E+05   nst =   418  q =  5  h =   0.459935E+03
+  c1 (bot.left/middle/top rt.) =  -0.343224E-10 -0.160609E-07 -0.337596E-10
+  c2 (bot.left/middle/top rt.) =   0.332031E+12  0.964979E+12  0.390900E+12
 
- t =   0.648E+05   nst =   431  q =  5  h =   0.949533E+03
-  c1 (bot.left/middle/top rt.) =   0.379212E-09  0.190141E-07  0.719619E-09
-  c2 (bot.left/middle/top rt.) =   0.331303E+12  0.892184E+12  0.396342E+12
+ t =   0.648E+05   nst =   429  q =  5  h =   0.703324E+03
+  c1 (bot.left/middle/top rt.) =   0.121611E-11  0.107637E-09  0.568024E-11
+  c2 (bot.left/middle/top rt.) =   0.331303E+12  0.892179E+12  0.396342E+12
 
- t =   0.720E+05   nst =   441  q =  5  h =   0.700864E+03
-  c1 (bot.left/middle/top rt.) =  -0.187184E-10 -0.936079E-09 -0.355015E-10
-  c2 (bot.left/middle/top rt.) =   0.332972E+12  0.618617E+12  0.403885E+12
+ t =   0.720E+05   nst =   439  q =  5  h =   0.703324E+03
+  c1 (bot.left/middle/top rt.) =  -0.121674E-11 -0.741529E-09  0.458282E-12
+  c2 (bot.left/middle/top rt.) =   0.332972E+12  0.618618E+12  0.403885E+12
 
- t =   0.792E+05   nst =   451  q =  5  h =   0.700864E+03
-  c1 (bot.left/middle/top rt.) =   0.136509E-12  0.673869E-11  0.258515E-12
-  c2 (bot.left/middle/top rt.) =   0.333441E+12  0.666904E+12  0.412026E+12
+ t =   0.792E+05   nst =   449  q =  5  h =   0.703324E+03
+  c1 (bot.left/middle/top rt.) =   0.849399E-13  0.543107E-10 -0.560787E-13
+  c2 (bot.left/middle/top rt.) =   0.333441E+12  0.666894E+12  0.412026E+12
 
- t =   0.864E+05   nst =   461  q =  5  h =   0.700864E+03
-  c1 (bot.left/middle/top rt.) =   0.414351E-13  0.207247E-11  0.786247E-13
-  c2 (bot.left/middle/top rt.) =   0.335178E+12  0.910668E+12  0.416250E+12
+ t =   0.864E+05   nst =   459  q =  5  h =   0.703324E+03
+  c1 (bot.left/middle/top rt.) =  -0.292496E-14 -0.209319E-11  0.284801E-14
+  c2 (bot.left/middle/top rt.) =   0.335178E+12  0.910674E+12  0.416251E+12
 
 
 Final statistics:
 
- number of steps        =   461      number of f evals.     =  597
- number of prec. setups =    78
- number of prec. evals. =     8      number of prec. solves =  1176
- number of nonl. iters. =   594      number of lin. iters.  =   636
- average Krylov subspace dimension (NLI/NNI)  =   0.107071E+01
+ number of steps        =   459      number of f evals.     =  590
+ number of prec. setups =    75
+ number of prec. evals. =     8      number of prec. solves =  1162
+ number of nonl. iters. =   587      number of lin. iters.  =   630
+ average Krylov subspace dimension (NLI/NNI)  =   0.107325E+01
  number of conv. failures.. nonlinear =   0 linear =   0
- number of error test failures =  27
+ number of error test failures =  25

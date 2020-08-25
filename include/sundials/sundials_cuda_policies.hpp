@@ -78,8 +78,8 @@ public:
   }
 
 private:
-  const cudaStream_t stream_;
   const size_t blockDim_;
+  const cudaStream_t stream_;
 };
 
 /*
@@ -120,9 +120,9 @@ public:
   }
 
 private:
-  const cudaStream_t stream_;
   const size_t blockDim_;
   const size_t gridDim_;
+  const cudaStream_t stream_;
 };
 
 
@@ -175,9 +175,9 @@ public:
   }
 
 private:
-  const cudaStream_t stream_;
   const size_t blockDim_;
   const size_t gridDim_;
+  const cudaStream_t stream_;
 };
 
 } // namespace sundials

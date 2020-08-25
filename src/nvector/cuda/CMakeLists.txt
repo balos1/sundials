@@ -17,19 +17,22 @@
 install(CODE "MESSAGE(\"\nInstall NVECTOR_CUDA\n\")")
 
 # Add variable nveccuda_SOURCES with the sources for the NVECUDA lib
-set(nveccuda_SOURCES nvector_cuda.cu sundials_cuda_memory.cu)
+set(nveccuda_SOURCES nvector_cuda.cu)
 
 # Add variable shared_SOURCES with the common SUNDIALS sources which will
 # also be included in the NVECCUDA library
 set(shared_SOURCES
-  sundials_nvector.c
-  sundials_math.c
-  sundials_memory.c
+  ${PROJECT_SOURCE_DIR}/src/sundials/sundials_nvector.c
+  ${PROJECT_SOURCE_DIR}/src/sundials/sundials_math.c
+  ${PROJECT_SOURCE_DIR}/src/sundials/sundials_memory.c
+  ${PROJECT_SOURCE_DIR}/src/sunmemory/sundials_cuda_memory.cu
 )
-add_prefix(${sundials_SOURCE_DIR}/src/sundials/ shared_SOURCES)
 
 # Add variable nveccuda_HEADERS with the exported NVECUDA header files
-set(nveccuda_HEADERS ${sundials_SOURCE_DIR}/include/nvector/nvector_cuda.h)
+set(nveccuda_HEADERS
+  ${PROJECT_SOURCE_DIR}/include/nvector/nvector_cuda.h
+  ${PROJECT_SOURCE_DIR}/include/sunmemory/sunmemory_cuda.h
+  )
 
 # Define C preprocessor flag -DBUILD_SUNDIALS_LIBRARY
 add_definitions(-DBUILD_SUNDIALS_LIBRARY)

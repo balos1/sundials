@@ -195,7 +195,7 @@ if(NEED_FORTRAN_NAME_MANGLING)
       "SET(CMAKE_C_FLAGS_RELWITHDEBUGINFO \"${CMAKE_C_FLAGS_RELWITHDEBUGINFO}\")\n"
       "SET(CMAKE_C_FLAGS_MINSIZE \"${CMAKE_C_FLAGS_MINSIZE}\")\n"
       "ADD_EXECUTABLE(ctest1 ctest1.c)\n"
-      "FIND_LIBRARY(FLIB flib ${FortranTest_DIR})\n"
+      "FIND_LIBRARY(FLIB flib \"${FortranTest_DIR}\")\n"
       "TARGET_LINK_LIBRARIES(ctest1 \${FLIB})\n")
 
     # Define the list "options" of all possible schemes that we want to consider

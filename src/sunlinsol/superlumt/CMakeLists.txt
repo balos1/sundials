@@ -23,9 +23,9 @@ set(sunlinsolsuperlumt_HEADERS
 # Include OpenMP flags if SuperLU_MT is using OpenMP,
 # otherwise we use threads.
 if(SUPERLUMT_THREAD_TYPE STREQUAL "OPENMP")
-  set(_use_openmp TRUE)
+  set(_threads OpenMP::OpenMP_C)
 else()
-  set(_use_openmp FALSE)
+  set(_threads ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 # Add the library
@@ -35,8 +35,7 @@ sundials_add_library(sundials_sunlinsolsuperlumt
   OBJECT_LIBRARIES
     sundials_generic_obj
   LINK_LIBRARIES
-  PUBLIC sundials_sunmatrixsparse SUPERLUMT::SUPERLUMT
-    $<IF:$<BOOL:_use_openmp>,OpenMP::OpenMP_C,${CMAKE_THREAD_LIBS_INIT}>
+  PUBLIC sundials_sunmatrixsparse SUPERLUMT::SUPERLUMT ${_threads}
   OUTPUT_NAME
     sundials_sunlinsolsuperlumt
   VERSION

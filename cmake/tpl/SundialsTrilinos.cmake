@@ -91,6 +91,10 @@ else()
   set(Trilinos_INTERFACE_MPI_C_FOUND ${Trilinos_MPI} CACHE INTERNAL "Is Trilinos interface C compiler MPI")
 endif()
 
+message(STATUS "Trilinos_MPI:          ${Trilinos_MPI}")
+message(STATUS "Trilinos_LIBRARIES:    ${Trilinos_LIBRARIES}")
+message(STATUS "Trilinos_INCLUDE_DIRS: ${Trilinos_INCLUDE_DIRS}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

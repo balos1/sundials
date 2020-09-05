@@ -47,6 +47,9 @@ endif()
 
 find_package(KLU REQUIRED)
 
+message(STATUS "KLU_LIBRARIES:   ${KLU_LIBRARIES}")
+message(STATUS "KLU_INCLUDE_DIR: ${KLU_INCLUDE_DIR}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

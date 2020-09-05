@@ -32,7 +32,9 @@
 # ---------------------------------------------------------------
 
 # check for valid thread type
-string(TOUPPER "${SUPERLUMT_THREAD_TYPE}" SUPERLUMT_THREAD_TYPE)
+string(TOUPPER ${SUPERLUMT_THREAD_TYPE} _upper_SUPERLUMT_THREAD_TYPE)
+force_variable(SUPERLUMT_THREAD_TYPE STRING "SuperLU_MT threading type: OPENMP or PTHREAD" ${_upper_SUPERLUMT_THREAD_TYPE})
+
 if(SUPERLUMT_THREAD_TYPE AND
     NOT SUPERLUMT_THREAD_TYPE STREQUAL "OPENMP" AND
     NOT SUPERLUMT_THREAD_TYPE STREQUAL "PTHREAD")

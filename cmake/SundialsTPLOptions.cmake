@@ -97,7 +97,7 @@ sundials_option(SUPERLUMT_LIBRARY_DIR PATH "SuperLU_MT library directory" "${SUP
 sundials_option(SUPERLUMT_LIBRARIES STRING "Semi-colon separated list of additional libraries needed for SuperLU_MT." "${SUPERLUMT_LIBRARIES}"
                 SHOW_IF ENABLE_SUPERLUMT)
 
-sundials_option(SUPERLUMT_THREAD_TYPE BOOL "SuperLU_MT threading type: OPENMP or PTHREAD" "PTHREAD"
+sundials_option(SUPERLUMT_THREAD_TYPE STRING "SuperLU_MT threading type: OPENMP or PTHREAD" "PTHREAD"
                 SHOW_IF ENABLE_SUPERLUMT)
 
 sundials_option(SUPERLUMT_WORKS BOOL "Set to ON to force CMake to accept a given SUPERLUMT configuration" OFF

@@ -127,6 +127,6 @@ sundials_option(EXAMPLES_INSTALL_PATH PATH "Output directory for installing exam
 if(EXAMPLES_INSTALL AND NOT EXAMPLES_INSTALL_PATH)
   print_warning("The example installation path is empty. "
                 "Example installation path was reset to its default value")
-  set(EXAMPLES_I  NSTALL_PATH "${CMAKE_INSTALL_PREFIX}/examples" CACHE STRING
+  set(EXAMPLES_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/examples" CACHE STRING
       "Output directory for installing example files" FORCE)
 endif()

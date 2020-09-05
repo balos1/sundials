@@ -65,6 +65,8 @@ else()
   set(LAPACK_FOUND FALSE)
 endif()
 
+message(STATUS "LAPACK_LIBRARIES:  ${LAPACK_LIBRARIES}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

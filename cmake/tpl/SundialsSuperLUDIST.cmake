@@ -76,6 +76,12 @@ endif()
 # Try to find SuperLU_DIST
 find_package(SUPERLUDIST REQUIRED)
 
+message(STATUS "SUPERLUDIST_LIBRARIES:   ${SUPERLUDIST_LIBRARIES}")
+message(STATUS "SUPERLUDIST_INCLUDE_DIR: ${SUPERLUDIST_INCLUDE_DIR}")
+message(STATUS "SUPERLUDIST_INDEX_SIZE:  ${SUPERLUDIST_INDEX_SIZE}")
+message(STATUS "SUPERLUDIST_OpenMP:      ${SUPERLUDIST_OpenMP}")
+
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

@@ -47,6 +47,9 @@ endif()
 
 find_package(SUPERLUMT REQUIRED)
 
+message(STATUS "SUPERLUMT_LIBRARIES:   ${SUPERLUMT_LIBRARIES}")
+message(STATUS "SUPERLUMT_INCLUDE_DIR: ${SUPERLUMT_INCLUDE_DIR}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

@@ -47,6 +47,9 @@ endif()
 
 find_package(HYPRE REQUIRED)
 
+message(STATUS "HYPRE_LIBRARIES:   ${HYPRE_LIBRARIES}")
+message(STATUS "HYPRE_INCLUDE_DIR: ${HYPRE_INCLUDE_DIR}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------

@@ -35,7 +35,7 @@ extern "C" {
                                     rate for the nonlinear equation */
 #define DGMAX     RCONST(0.2)    /* if |gamma/gammap-1| > DGMAX then call lsetup */
 #define RDIV      RCONST(2.3)    /* declare divergence if ratio del/delp > RDIV */
-#define MSBP      20             /* max no. of steps between lsetup calls */
+#define MSBP      25             /* max no. of steps between lsetup calls */
 
 /* Default solver tolerance factor */
 /* #define NLSCOEF   RCONST(0.003) */  /* Hairer & Wanner constant */

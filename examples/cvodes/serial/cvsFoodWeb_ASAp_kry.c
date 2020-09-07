@@ -353,6 +353,12 @@ int main(int argc, char *argv[])
   retval = CVodeSetPreconditionerB(cvode_mem, indexB, PrecondB, PSolveB);
   if(check_retval(&retval, "CVodeSetPreconditionerB", 1)) return(1);
 
+  /* Call CVodeSetMaxNumStepsB to set the maximum number of steps the
+   * solver will take in an attempt to reach the next output time
+   * during backward integration. */
+  retval = CVodeSetMaxNumStepsB(cvode_mem, indexB, 2500);
+  if(check_retval(&retval, "CVodeSetMaxNumStepsB", 1)) return(1);
+
   /* Perform backward integration */
 
   printf("\nBackward integration\n");

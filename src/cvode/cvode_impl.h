@@ -49,7 +49,7 @@ extern "C" {
 #define MXHNIL_DEFAULT   10             /* mxhnil default value   */
 #define MXSTEP_DEFAULT   500            /* mxstep default value   */
 
-#define MSBP 20  /* max no. of steps between lsetup calls */
+#define MSBP 25  /* max no. of steps between lsetup calls */
 
 
 /* Control constants for lower-level functions used by cvStep

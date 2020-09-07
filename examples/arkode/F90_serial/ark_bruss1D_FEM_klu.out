@@ -29,7 +29,7 @@ ARKStep time step module parameters:
   Nonlinear convergence rate constant = 0.3
   Nonlinear divergence tolerance = 2.3
   Gamma factor LSetup tolerance = 0.2
-  Number of steps between LSetup calls = 20
+  Number of steps between LSetup calls = 25
 
          t         ||u||_rms    ||v||_rms    ||w||_rms
    ----------------------------------------------------

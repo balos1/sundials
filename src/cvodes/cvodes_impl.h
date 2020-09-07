@@ -46,7 +46,7 @@ extern "C" {
 #define MXHNIL_DEFAULT   10             /* mxhnil default value   */
 #define MXSTEP_DEFAULT   500            /* mxstep default value   */
 
-#define MSBP 20  /* max no. of steps between lsetup calls */
+#define MSBP 25  /* max no. of steps between lsetup calls */
 
 /* Return values for lower level routines used by CVode and functions
    provided to the nonlinear solver */

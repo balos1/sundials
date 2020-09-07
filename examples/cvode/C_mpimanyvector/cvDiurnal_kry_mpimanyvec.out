@@ -59,9 +59,9 @@ Final Statistics:
 lenrw   =  2689     leniw   =   248
 lenrwls =  2454     leniwls =   222
 nst     =   483
-nfe     =   601     nfels   =  1149
-nni     =   598     nli     =  1149
-nsetups =    82     netf    =    25
+nfe     =   599     nfels   =  1149
+nni     =   596     nli     =  1149
+nsetups =    80     netf    =    25
 npe     =     9     nps     =  1658
 ncfn    =     0     ncfl    =     2
 

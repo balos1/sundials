@@ -23,7 +23,7 @@ Final Solver Statistics:
    Total RHS evals:  Fe = 0,  Fi = 703
    Total linear solver setups = 22
    Total RHS evals for setting up the linear system = 0
-   Total number of Jacobian evaluations = 3
+   Total number of Jacobian evaluations = 4
    Total number of Newton iterations = 350
    Total number of linear solver convergence failures = 0
    Total number of error test failures = 2

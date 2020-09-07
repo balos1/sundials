@@ -33,7 +33,7 @@ Final statistics:
  number of fe evals.    =     0
  number of fi evals.    =  3410
  number of prec. setups =    25
- number of prec. evals. =     6
+ number of prec. evals. =     7
  number of prec. solves =  3380
  number of nonl. iters. =  1812
  number of lin. iters.  =  1785
@@ -44,7 +44,7 @@ Final statistics:
  linear solver real/int workspace sizes =   535  126
 In ARKBBDPRE:
  real/int local workspace =   160   72
- number of g evals. =    12
+ number of g evals. =    14
 
 
 ------------------------------------------------------------
@@ -73,7 +73,7 @@ Final statistics:
  number of fe evals.    =     0
  number of fi evals.    =  3410
  number of prec. setups =    25
- number of prec. evals. =     6
+ number of prec. evals. =     7
  number of prec. solves =  3380
  number of nonl. iters. =  1812
  number of lin. iters.  =  1785
@@ -84,4 +84,4 @@ Final statistics:
  linear solver real/int workspace sizes =   535  126
 In ARKBBDPRE:
  real/int local workspace =   160   72
- number of g evals. =    12
+ number of g evals. =    14

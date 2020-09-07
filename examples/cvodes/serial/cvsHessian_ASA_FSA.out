@@ -64,18 +64,18 @@ Final Statistics for backward pb. 1
 
 Final Statistics for backward pb. 2
 -----------------------------------
- Number steps:   115
+ Number steps:   100
 
  Function evaluations:
-  f:          153
-  fQ:         121
+  f:          134
+  fQ:         105
  Error test failures:
   netf:         3
-  netfQ:        3
+  netfQ:        2
  Linear solver setups:
-  nsetups:     23
+  nsetups:     22
  Nonlinear iterations:
-  nni:        150
+  nni:        131
  Convergence failures:
   ncfn:         0
 
@@ -95,4 +95,4 @@ p2-  y:     2.2516e-01   1.3534e-01   3.2577e-02     G:     5.3070e-01
             -1.2838e-01   1.8028e-02   (cntr FD)
 
   H(1,1):    1.5594e-01
-  H(2,2):    8.9483e-02
+  H(2,2):    8.9482e-02

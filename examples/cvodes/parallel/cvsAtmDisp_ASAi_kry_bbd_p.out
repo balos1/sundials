@@ -18,7 +18,7 @@ nst     =    169
 nfe     =    172     nfel  =    303
 nni     =    169     nli   =    303
 nsetups =     18     netf  =      0
-npe     =      3     nps   =    469
+npe     =      4     nps   =    469
 ncfn    =      0     ncfl  =      0
 
 Begin backward integration... done.
@@ -27,10 +27,10 @@ Final Statistics..
 
 lenrw   = 150999     leniw =    236
 llrw    =  78786     lliw  =    126
-nst     =    119
-nfe     =    135     nfel  =    278
-nni     =    132     nli   =    278
-nsetups =     16     netf  =      0
-npe     =      3     nps   =    402
+nst     =    118
+nfe     =    133     nfel  =    279
+nni     =    130     nli   =    279
+nsetups =     15     netf  =      0
+npe     =      3     nps   =    401
 ncfn    =      0     ncfl  =      0
 

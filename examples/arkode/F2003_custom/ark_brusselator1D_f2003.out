@@ -1,4 +1,4 @@
-   
+
  1D Brusselator PDE test problem (F2003 with custom data structures):
     N =   201,  NEQ =   603
     problem parameters:  a =  6.00E-01,  b =  2.00E+00,  ep =  1.00E-05
@@ -107,14 +107,13 @@
     9.900000    0.394676    3.959154    1.999992
    10.000000    0.398916    3.974572    1.999992
     ----------------------------------------------
-  
+
  Final Solver Statistics:
-    Internal solver steps =       407, (attempted =       504)
-    Total RHS evals: Fe =      3027,  Fi =      8587
-    Total linear solver setups    =      269
+    Internal solver steps =       405, (attempted =       493)
+    Total RHS evals: Fe =      2961,  Fi =      8454
+    Total linear solver setups    =      249
     Total RHS evals for setting up the linear system =        0
-    Total number of Jacobian evaluations =       30
-    Total number of Newton iterations =     5560
+    Total number of Jacobian evaluations =       29
+    Total number of Newton iterations =     5493
     Total number of nonlinear solver convergence failures =        0
-    Total number of error test failures =       97
-  
+    Total number of error test failures =       88

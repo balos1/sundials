@@ -29,7 +29,7 @@ Final statistics:
 
  number of steps        =   317     number of f evals.     =   362
  number of prec. setups =    33
- number of prec. evals. =     6     number of prec. solves =   644
+ number of prec. evals. =     7     number of prec. solves =   644
  number of nonl. iters. =   359     number of lin. iters.  =   322
  average Krylov subspace dimension (NLI/NNI) =   0.8969
  number of conv. failures.. nonlinear =   0  linear =   0
@@ -38,7 +38,7 @@ Final statistics:
  linear solver real/int workspace sizes =   294   78
 In CVBBDPRE:
  real/int local workspace =   100   60
- number of g evals. =    12
+ number of g evals. =    14
 
 
 ------------------------------------------------------------
@@ -64,7 +64,7 @@ Final statistics:
 
  number of steps        =   317     number of f evals.     =   362
  number of prec. setups =    33
- number of prec. evals. =     6     number of prec. solves =   644
+ number of prec. evals. =     7     number of prec. solves =   644
  number of nonl. iters. =   359     number of lin. iters.  =   322
  average Krylov subspace dimension (NLI/NNI) =   0.8969
  number of conv. failures.. nonlinear =   0  linear =   0
@@ -73,4 +73,4 @@ Final statistics:
  linear solver real/int workspace sizes =   294   78
 In CVBBDPRE:
  real/int local workspace =   100   60
- number of g evals. =    12
+ number of g evals. =    14

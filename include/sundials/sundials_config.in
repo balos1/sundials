@@ -149,3 +149,9 @@
 /* Mark SUNDIALS API functions for deprecation.
  */
 #define SUNDIALS_DEPRECATED SUNDIALS_EXPORT
+
+/* Mark SUNDIALS function as inline.
+ */
+#ifndef SUNDIALS_INLINE
+#define SUNDIALS_INLINE inline
+#endif

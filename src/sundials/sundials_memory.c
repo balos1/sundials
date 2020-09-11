@@ -1,4 +1,3 @@
-
 /* -----------------------------------------------------------------
  * Programmer(s): Cody J. Balos @ LLNL
  * -----------------------------------------------------------------
@@ -33,6 +32,54 @@ SUNMemory SUNMemoryNewEmpty()
   }
 
   return(mem);
+}
+
+
+SUNMemoryHelper SUNMemoryHelper_NewEmpty()
+{
+  SUNMemoryHelper helper = NULL;
+
+  helper = (SUNMemoryHelper) malloc(sizeof(struct _SUNMemoryHelper));
+  if (helper == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_NewEmpty: malloc failed\n");
+    return(NULL);
+  }
+
+  helper->ops = (SUNMemoryHelper_Ops) malloc(sizeof(struct _SUNMemoryHelper_Ops));
+  if (helper->ops == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_NewEmpty: malloc failed\n");
+    free(helper);
+    return(NULL);
+  }
+
+  /* Set all ops to NULL */
+  memset(helper->ops, 0, sizeof(struct _SUNMemoryHelper_Ops));
+  helper->content = NULL;
+
+  return(helper);
+}
+
+
+int SUNMemoryHelper_CopyOps(SUNMemoryHelper src, SUNMemoryHelper dst)
+{
+  /* Check that ops structures exist */
+  if (src == NULL || dst == NULL || src->ops == NULL || dst->ops == NULL)
+    return(-1);
+  memcpy(dst->ops, src->ops, sizeof(struct _SUNMemoryHelper_Ops));
+  return(0);
+}
+
+
+booleantype SUNMemoryHelper_ImplementsRequiredOps(SUNMemoryHelper helper)
+{
+  if (helper->ops->alloc == NULL || helper->ops->dealloc == NULL ||
+      helper->ops->copy == NULL)
+  {
+    return(SUNFALSE);
+  }
+  return(SUNTRUE);
 }
 
 
@@ -79,26 +126,22 @@ SUNMemory SUNMemoryHelper_Wrap(void* ptr, SUNMemoryType mem_type)
 }
 
 
-SUNMemory SUNMemoryHelper_Alloc(SUNMemoryHelper helper, size_t memsize,
-                                SUNMemoryType mem_type)
+int SUNMemoryHelper_Alloc(SUNMemoryHelper helper, SUNMemory* memptr,
+                          size_t memsize, SUNMemoryType mem_type)
 {
   if (helper->ops->alloc == NULL)
-  {
-    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc: function pointer is NULL\n");
-    return NULL;
-  }
-  return helper->ops->alloc(helper, memsize, mem_type);
+    return(-1);
+  return(helper->ops->alloc(helper, memptr, memsize, mem_type));
 }
 
 
-void SUNMemoryHelper_Dealloc(SUNMemoryHelper helper, SUNMemory mem)
+int SUNMemoryHelper_Dealloc(SUNMemoryHelper helper, SUNMemory mem)
 {
   if (helper->ops->dealloc == NULL)
-  {
-    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Dealloc: function pointer is NULL\n");
-  }
-  helper->ops->dealloc(helper, mem);
-  if (mem != NULL) free(mem);
+    return(-1);
+  if (mem == NULL)
+    return(0);
+  return(helper->ops->dealloc(helper, mem));
 }
 
 
@@ -125,7 +168,7 @@ int SUNMemoryHelper_CopyAsync(SUNMemoryHelper helper, SUNMemory dst,
   return(helper->ops->copyasync(helper, dst, src, memory_size, ctx));
 }
 
-void SUNMemoryHelper_Destroy(SUNMemoryHelper helper)
+int SUNMemoryHelper_Destroy(SUNMemoryHelper helper)
 {
   if (helper->ops->destroy == NULL)
   {
@@ -134,8 +177,9 @@ void SUNMemoryHelper_Destroy(SUNMemoryHelper helper)
   }
   else
   {
-    helper->ops->destroy(helper);
+    return(helper->ops->destroy(helper));
   }
+  return(0);
 }
 
 
@@ -143,11 +187,8 @@ SUNMemoryHelper SUNMemoryHelper_Clone(SUNMemoryHelper helper)
 {
   if (helper->ops->clone == NULL)
   {
-    SUNMemoryHelper hclone = (SUNMemoryHelper) malloc(sizeof(struct _SUNMemoryHelper));
-    memcpy(hclone, helper, sizeof(struct _SUNMemoryHelper));
-    hclone->ops = (SUNMemoryHelper_Ops) malloc(sizeof(struct _SUNMemoryHelper_Ops));
-    memcpy(hclone->ops, helper->ops, sizeof(struct _SUNMemoryHelper_Ops));
-    hclone->content = NULL;
+    SUNMemoryHelper hclone = SUNMemoryHelper_NewEmpty();
+    if (hclone) SUNMemoryHelper_CopyOps(helper, hclone);
     return(hclone);
   }
   else

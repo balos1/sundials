@@ -25,7 +25,7 @@ set(cusparse_SOURCES
 # also be included in the NVECCUDA library
 set(shared_SOURCES
   ${sundials_SOURCE_DIR}/src/sundials/sundials_matrix.c
-  ${sundials_SOURCE_DIR}/src/sunmemory/sundials_cuda_memory.cu
+  ${sundials_SOURCE_DIR}/src/sunmemory/cuda/sundials_cuda_memory.cu
   )
 
 # Add variable cusparse_HEADERS with the exported cusparse header files

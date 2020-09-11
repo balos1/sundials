@@ -26,10 +26,6 @@
 #include "custom_memory_helper.h"
 #include "test_nvector.h"
 
-/* private custom allocator functions */
-/* static void* sunalloc(size_t); */
-/* static void sunfree(void* ptr); */
-
 /* CUDA vector specific tests */
 static int Test_N_VMake_Cuda(N_Vector X, sunindextype length, int myid);
 static int Test_N_VMakeManaged_Cuda(N_Vector X, sunindextype length, int myid);
@@ -91,6 +87,8 @@ int main(int argc, char *argv[])
 
     /* test with all memory variants */
     for (memtype=UNMANAGED; memtype<=CUSTOM; ++memtype) {
+      SUNMemoryHelper mem_helper = NULL;
+
       printf("=====> Beginning setup\n\n");
 
       if (memtype==UNMANAGED) {
@@ -99,16 +97,18 @@ int main(int argc, char *argv[])
         printf("Testing CUDA N_Vector with managed memory, policy %d\n", policy);
       } else if (memtype==CUSTOM) {
         printf("Testing CUDA N_Vector with custom allocator, policy %d\n", policy);
+        mem_helper = MyMemoryHelper();
       }
       printf("Vector length: %ld \n", (long int) length);
 
       /* Create new vectors */
       if (memtype == UNMANAGED)    X = N_VNew_Cuda(length);
       else if (memtype == MANAGED) X = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  X = N_VNewCustom_Cuda(length, MyMemoryHelper());
+      else if (memtype == CUSTOM)  X = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
       if (X == NULL) {
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
           N_VDestroy(X);
           delete stream_exec_policy;
           delete reduce_exec_policy;
+          if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
           printf("FAIL: Unable to set kernel execution policy \n\n");
           return(1);
         }
@@ -138,6 +139,7 @@ int main(int argc, char *argv[])
         printf("FAIL: Unable to create a new vector \n\n");
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         return(1);
       }
 
@@ -147,6 +149,7 @@ int main(int argc, char *argv[])
         N_VDestroy(Y);
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
@@ -209,12 +212,13 @@ int main(int argc, char *argv[])
       /* create vector and disable all fused and vector array operations */
       if (memtype == UNMANAGED)    U = N_VNew_Cuda(length);
       else if (memtype == MANAGED) U = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  U = N_VNewCustom_Cuda(length, MyMemoryHelper());
+      else if (memtype == CUSTOM)  U = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
       if (U == NULL) {
         N_VDestroy(X);
         N_VDestroy(Y);
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
@@ -226,6 +230,7 @@ int main(int argc, char *argv[])
         N_VDestroy(U);
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
@@ -250,16 +255,17 @@ int main(int argc, char *argv[])
       /* create vector and enable all fused and vector array operations */
       if (memtype == UNMANAGED)    V = N_VNew_Cuda(length);
       else if (memtype == MANAGED) V = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  V = N_VNewCustom_Cuda(length, MyMemoryHelper());
+      else if (memtype == CUSTOM)  V = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
       retval = N_VEnableFusedOps_Cuda(V, SUNTRUE);
       if (V == NULL) {
         N_VDestroy(X);
         N_VDestroy(Y);
         N_VDestroy(Z);
         N_VDestroy(U);
-        printf("FAIL: Unable to create a new vector \n\n");
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
+        printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
       if (retval != 0) {
@@ -270,6 +276,7 @@ int main(int argc, char *argv[])
         N_VDestroy(V);
         delete stream_exec_policy;
         delete reduce_exec_policy;
+        if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
         printf("FAIL: Unable to create a new vector \n\n");
         return(1);
       }
@@ -317,6 +324,8 @@ int main(int argc, char *argv[])
       N_VDestroy(Z);
       N_VDestroy(U);
       N_VDestroy(V);
+
+      if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
 
       /* Synchronize */
       cudaDeviceSynchronize();
@@ -542,20 +551,3 @@ void sync_device()
   cudaDeviceSynchronize();
   return;
 }
-
-/* void* sunalloc(size_t mem_size) */
-/* { */
-/*   void* ptr; */
-/*   cudaError_t err; */
-/*   err = cudaMallocManaged(&ptr, mem_size); */
-/*   if (err != cudaSuccess) { */
-/*     printf("Error in sunalloc\n"); */
-/*     ptr = NULL; */
-/*   } */
-/*   return ptr; */
-/* } */
-
-/* void sunfree(void* ptr) */
-/* { */
-/*   cudaFree(ptr); */
-/* } */

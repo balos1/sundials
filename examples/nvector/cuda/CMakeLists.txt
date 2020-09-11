@@ -32,7 +32,7 @@ set(nvector_examples_dependencies
   )
 
 # Add source directory to include directories
-include_directories(. .. ../../)
+include_directories(. .. ${PROJECT_SOURCE_DIR}/examples/utilities)
 
 # Specify libraries to link against (through the target that was used to
 # generate them) based on the value of the variable LINK_LIBRARY_TYPE
@@ -104,8 +104,8 @@ foreach(example_tuple ${nvector_cuda_examples})
     install(FILES ${example}.cu
       ../test_nvector.c
       ../test_nvector.h
-      ../../custom_memory_helper.h
-      ../../../src/sundials/sundials_nvector.c
+      ${sundials_SOURCE_DIR}/examples/utilities/custom_memory_helper.h
+      ${sundials_SOURCE_DIR}/src/sundials/sundials_nvector.c
       DESTINATION ${EXAMPLES_INSTALL_PATH}/nvector/cuda)
   endif()
 

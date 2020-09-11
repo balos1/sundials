@@ -15,66 +15,82 @@
  * unmanaged memory only and synchronous copies.
  * -----------------------------------------------------------------*/
 
+#include <assert.h>
 #include <cuda_runtime.h>
-
 #include <sundials/sundials_memory.h>
 
 
-SUNMemory MyMemoryHelper_Alloc(SUNMemoryHelper helper,
-                               size_t memsize,
-                               SUNMemoryType mem_type)
+#define MY_CUDACHK(ans) { cudaVerify((ans), __FILE__, __LINE__, 1); }
+static void cudaVerify(cudaError_t code, const char *file, int line, int abort)
+{
+   if (code != cudaSuccess)
+   {
+      fprintf(stderr, "CUDA ERROR: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) assert(false);
+   }
+}
+
+int MyMemoryHelper_Alloc(SUNMemoryHelper helper, SUNMemory* memptr,
+                         size_t memsize, SUNMemoryType mem_type)
 {
   SUNMemory mem = SUNMemoryNewEmpty();
 
   mem->ptr = NULL;
   mem->own = SUNTRUE;
 
-  if (mem_type == SUNMEMTYPE_HOST ||
-      mem_type == SUNMEMTYPE_PINNED)
+  if (mem_type == SUNMEMTYPE_HOST)
   {
     mem->ptr  = malloc(memsize);
+    if (mem->ptr == NULL) return(-1);
     mem->type = SUNMEMTYPE_HOST;
   }
   else if (mem_type == SUNMEMTYPE_UVM ||
            mem_type == SUNMEMTYPE_DEVICE)
   {
-    cudaMalloc(&(mem->ptr), memsize);
+    MY_CUDACHK( cudaMalloc(&(mem->ptr), memsize) );
     mem->type = SUNMEMTYPE_DEVICE;
   }
   else
   {
     free(mem);
-    return(NULL);
+    return(-1);
   }
 
-  return(mem);
+  *memptr = mem;
+  return(0);
 }
 
-void MyMemoryHelper_Dealloc(SUNMemoryHelper helper, SUNMemory mem)
+int MyMemoryHelper_Dealloc(SUNMemoryHelper helper, SUNMemory mem)
 {
-  if (mem == NULL) return;
-
-  if (mem->ptr != NULL && mem->own)
+  if (mem != NULL)
   {
-    if (mem->type == SUNMEMTYPE_HOST)
+    if (mem->ptr != NULL && mem->own)
     {
-      free(mem->ptr);
-      mem->ptr = NULL;
+      if (mem->type == SUNMEMTYPE_HOST)
+      {
+        free(mem->ptr);
+        mem->ptr = NULL;
+      }
+      else if (mem->type == SUNMEMTYPE_DEVICE)
+      {
+        MY_CUDACHK( cudaFree(mem->ptr) );
+        mem->ptr = NULL;
+      }
+      else
+      {
+        return(-1);
+      }
     }
-    else if (mem->type == SUNMEMTYPE_DEVICE)
-    {
-      cudaFree(mem->ptr);
-      mem->ptr = NULL;
-    }
+
+    free(mem);
   }
+
+  return(0);
 }
 
 int MyMemoryHelper_Copy(SUNMemoryHelper helper, SUNMemory dst,
                         SUNMemory src, size_t memory_size)
 {
-  int retval = 0;
-  cudaError_t cuerr = cudaSuccess;
-
   switch(src->type)
   {
     case SUNMEMTYPE_HOST:
@@ -84,56 +100,47 @@ int MyMemoryHelper_Copy(SUNMemoryHelper helper, SUNMemory dst,
       }
       else if (dst->type == SUNMEMTYPE_DEVICE)
       {
-        cuerr = cudaMemcpy(dst->ptr, src->ptr,
-                           memory_size,
-                           cudaMemcpyHostToDevice);
+        MY_CUDACHK( cudaMemcpy(dst->ptr, src->ptr,
+                               memory_size,
+                               cudaMemcpyHostToDevice) );
       }
-      if (cuerr != cudaSuccess) retval = -1;
       break;
     case SUNMEMTYPE_DEVICE:
       if (dst->type == SUNMEMTYPE_HOST)
       {
-        cuerr = cudaMemcpy(dst->ptr, src->ptr,
-                           memory_size,
-                           cudaMemcpyDeviceToHost);
+        MY_CUDACHK( cudaMemcpy(dst->ptr, src->ptr,
+                               memory_size,
+                               cudaMemcpyDeviceToHost) );
       }
       else if (dst->type == SUNMEMTYPE_DEVICE)
       {
-        cuerr = cudaMemcpy(dst->ptr, src->ptr,
-                           memory_size,
-                           cudaMemcpyDeviceToDevice);
+        MY_CUDACHK( cudaMemcpy(dst->ptr, src->ptr,
+                               memory_size,
+                               cudaMemcpyDeviceToDevice) );
       }
-      if (cuerr != cudaSuccess) retval = -1;
       break;
     default:
-      retval = -1;
+      return(-1);
   }
 
-  return(retval);
+  return(0);
 }
 
 SUNMemoryHelper MyMemoryHelper()
 {
   SUNMemoryHelper helper;
-  SUNMemoryHelper_Ops ops;
-
-  /* Create the ops */
-  ops = (SUNMemoryHelper_Ops) malloc(sizeof(struct _SUNMemoryHelper_Ops));
-  memset(ops, 0, sizeof(struct _SUNMemoryHelper_Ops));
-
-  /* Set the ops */
-  ops->alloc     = MyMemoryHelper_Alloc;
-  ops->dealloc   = MyMemoryHelper_Dealloc;
-  ops->copy      = MyMemoryHelper_Copy;
-  ops->copyasync = NULL;
 
   /* Allocate helper */
-  helper = (SUNMemoryHelper) malloc(sizeof(struct _SUNMemoryHelper));
-  memset(helper, 0, sizeof(struct _SUNMemoryHelper));
+  helper = SUNMemoryHelper_NewEmpty();
+
+  /* Set the ops */
+  helper->ops->alloc     = MyMemoryHelper_Alloc;
+  helper->ops->dealloc   = MyMemoryHelper_Dealloc;
+  helper->ops->copy      = MyMemoryHelper_Copy;
+  helper->ops->copyasync = NULL;
 
   /* Attach user data and ops */
   helper->content = NULL;
-  helper->ops     = ops;
 
   return helper;
 }

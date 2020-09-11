@@ -38,12 +38,15 @@ extern "C" {
 
 struct _N_VectorContent_Cuda
 {
-    sunindextype       length;
-    SUNMemory          host_data;
-    SUNMemory          device_data;
-    SUNCudaExecPolicy* stream_exec_policy;
-    SUNCudaExecPolicy* reduce_exec_policy;
-    void*              priv; /* 'private' data */
+  sunindextype       length;
+  booleantype        own_exec;
+  booleantype        own_helper;
+  SUNMemory          host_data;
+  SUNMemory          device_data;
+  SUNCudaExecPolicy* stream_exec_policy;
+  SUNCudaExecPolicy* reduce_exec_policy;
+  SUNMemoryHelper    mem_helper;
+  void*              priv; /* 'private' data */
 };
 
 typedef struct _N_VectorContent_Cuda *N_VectorContent_Cuda;
@@ -54,22 +57,24 @@ typedef struct _N_VectorContent_Cuda *N_VectorContent_Cuda;
  * -----------------------------------------------------------------
  */
 
+SUNDIALS_EXPORT N_Vector N_VNewEmpty_Cuda();
 SUNDIALS_EXPORT N_Vector N_VNew_Cuda(sunindextype length);
 SUNDIALS_EXPORT N_Vector N_VNewManaged_Cuda(sunindextype length);
-SUNDIALS_EXPORT N_Vector N_VNewCustom_Cuda(sunindextype length,
-                                           SUNMemoryHelper helper);
-SUNDIALS_EXPORT N_Vector N_VNewEmpty_Cuda();
+SUNDIALS_EXPORT N_Vector N_VNewWithMemHelp_Cuda(sunindextype length,
+                                                booleantype use_managed_mem,
+                                                SUNMemoryHelper helper);
 SUNDIALS_EXPORT N_Vector N_VMake_Cuda(sunindextype length,
                                       realtype *h_vdata,
                                       realtype *d_vdata);
 SUNDIALS_EXPORT N_Vector N_VMakeManaged_Cuda(sunindextype length,
                                              realtype *vdata);
+/* DEPRECATION NOTICE:
+   In SUNDIALS v6, this function will be removed.
+   Use N_VNewWithMemHelp_Cuda instead.
+ */
 SUNDIALS_DEPRECATED N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
                                                               void* (*allocfn)(size_t),
                                                               void (*freefn)(void*));
-SUNDIALS_EXPORT sunindextype N_VGetLength_Cuda(N_Vector v);
-SUNDIALS_EXPORT realtype *N_VGetHostArrayPointer_Cuda(N_Vector v);
-SUNDIALS_EXPORT realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VSetHostArrayPointer_Cuda(realtype* h_vdata, N_Vector v);
 SUNDIALS_EXPORT void N_VSetDeviceArrayPointer_Cuda(realtype* d_vdata, N_Vector v);
 SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Cuda(N_Vector x);
@@ -78,12 +83,38 @@ SUNDIALS_EXPORT int N_VSetKernelExecPolicy_Cuda(N_Vector x,
                                                 SUNCudaExecPolicy* reduce_exec_policy);
 SUNDIALS_EXPORT void N_VCopyToDevice_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VCopyFromDevice_Cuda(N_Vector v);
-SUNDIALS_EXPORT void N_VPrint_Cuda(N_Vector v);
-SUNDIALS_EXPORT void N_VPrintFile_Cuda(N_Vector v, FILE *outfile);
-
- /* DEPRECATED (to be removed in SUNDIALS v6): use N_VSetKerrnelExecPolicy_Cuda instead */
+/* DEPRECATION NOTICE:
+  In SUNDIALS v6, this function will be removed.
+  Use N_VSetKerrnelExecPolicy_Cuda instead.
+*/
 SUNDIALS_DEPRECATED void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 
+SUNDIALS_EXPORT SUNDIALS_INLINE
+sunindextype N_VGetLength_Cuda(N_Vector x)
+{
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
+  return content->length;
+}
+
+SUNDIALS_EXPORT SUNDIALS_INLINE
+realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
+{
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
+  if (content->host_data == NULL)
+    return(NULL);
+  else
+    return ((realtype*) content->host_data->ptr);
+}
+
+SUNDIALS_EXPORT SUNDIALS_INLINE
+realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
+{
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
+  if (content->device_data == NULL)
+    return(NULL);
+  else
+    return ((realtype*) content->device_data->ptr);
+}
 
 /*
  * -----------------------------------------------------------------
@@ -95,7 +126,6 @@ SUNDIALS_EXPORT N_Vector N_VCloneEmpty_Cuda(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VClone_Cuda(N_Vector w);
 SUNDIALS_EXPORT void N_VDestroy_Cuda(N_Vector v);
 SUNDIALS_EXPORT void N_VSpace_Cuda(N_Vector v, sunindextype *lrw, sunindextype *liw);
-SUNDIALS_EXPORT sunindextype N_VGetLength_Cuda(N_Vector v);
 
 /* standard vector operations */
 SUNDIALS_EXPORT void N_VLinearSum_Cuda(realtype a, N_Vector x, realtype b, N_Vector y, N_Vector z);
@@ -150,6 +180,10 @@ SUNDIALS_EXPORT int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X,
 /* OPTIONAL local reduction kernels (no parallel communication) */
 SUNDIALS_EXPORT realtype N_VWSqrSumLocal_Cuda(N_Vector x, N_Vector w);
 SUNDIALS_EXPORT realtype N_VWSqrSumMaskLocal_Cuda(N_Vector x, N_Vector w, N_Vector id);
+
+/* OPTIONAL operations for debugging */
+SUNDIALS_EXPORT void N_VPrint_Cuda(N_Vector v);
+SUNDIALS_EXPORT void N_VPrintFile_Cuda(N_Vector v, FILE *outfile);
 
 
 /*

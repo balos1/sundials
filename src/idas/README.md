@@ -1,5 +1,5 @@
 # IDAS
-### Version 4.4.0 (Aug 2020)
+### Version 4.4.0 (Sep 2020)
 
 **Radu Serban  
   Center for Applied Scientific Computing, LLNL**
@@ -41,10 +41,10 @@ the "SUNDIALS Release History" appendix of the IDAS User Guide.
 ## References
 
 * R. Serban, C. Petra,and A. C. Hindmarsh,  "User Documentation for IDAS v4.4.0,"
-  LLNL technical report UCRL-SM-234051, Aug 2020.
+  LLNL technical report UCRL-SM-234051, Sep 2020.
 
 * R. Serban and A.C. Hindmarsh, "Example Programs for IDAS v4.4.0,"
-  LLNL technical report LLNL-TR-437091, Aug 2020.
+  LLNL technical report LLNL-TR-437091, Sep 2020.
 
 * A. C. Hindmarsh, P. N. Brown, K. E. Grant, S. L. Lee, R. Serban,
   D. E. Shumaker, and C. S. Woodward, "SUNDIALS, Suite of Nonlinear and

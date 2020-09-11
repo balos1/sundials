@@ -68,15 +68,16 @@ struct _SUNMemoryHelper
 
 struct _SUNMemoryHelper_Ops
 {
-  /* required operations */
-  SUNMemory       (*alloc)(SUNMemoryHelper, size_t mem_size, SUNMemoryType mem_type);
-  void            (*dealloc)(SUNMemoryHelper, SUNMemory mem);
-  int             (*copy)(SUNMemoryHelper, SUNMemory dst, SUNMemory src, size_t memory_size);
+  /* operations that implementations are required to provide */
+  int             (*alloc)(SUNMemoryHelper, SUNMemory* memptr, size_t mem_size, SUNMemoryType mem_type);
+  int             (*dealloc)(SUNMemoryHelper, SUNMemory mem);
+  int             (*copy)(SUNMemoryHelper, SUNMemory dst, SUNMemory src, size_t mem_size);
 
-  /* optional operations */
-  int             (*copyasync)(SUNMemoryHelper, SUNMemory dst, SUNMemory src, size_t memory_size, void* ctx);
+  /* operations that provide default implementations */
+  int             (*copyasync)(SUNMemoryHelper, SUNMemory dst, SUNMemory src,
+                               size_t mem_size, void* ctx);
   SUNMemoryHelper (*clone)(SUNMemoryHelper);
-  void            (*destroy)(SUNMemoryHelper);
+  int             (*destroy)(SUNMemoryHelper);
 };
 
 
@@ -101,27 +102,42 @@ SUNDIALS_EXPORT SUNMemory SUNMemoryHelper_Wrap(void* ptr, SUNMemoryType mem_type
  */
 
 
-SUNDIALS_EXPORT SUNMemory SUNMemoryHelper_Alloc(SUNMemoryHelper, size_t memsize,
-                                                SUNMemoryType mem_type);
+SUNDIALS_EXPORT int SUNMemoryHelper_Alloc(SUNMemoryHelper, SUNMemory* memptr,
+                                          size_t mem_size, SUNMemoryType mem_type);
 
-SUNDIALS_EXPORT void  SUNMemoryHelper_Dealloc(SUNMemoryHelper, SUNMemory mem);
+SUNDIALS_EXPORT int SUNMemoryHelper_Dealloc(SUNMemoryHelper, SUNMemory mem);
 
 SUNDIALS_EXPORT int SUNMemoryHelper_Copy(SUNMemoryHelper, SUNMemory dst,
-                                         SUNMemory src, size_t memory_size);
+                                         SUNMemory src, size_t mem_size);
 
 /*
  * Optional SUNMemoryHelper operations.
  */
 
 SUNDIALS_EXPORT int SUNMemoryHelper_CopyAsync(SUNMemoryHelper, SUNMemory dst,
-                                              SUNMemory src, size_t memory_size,
+                                              SUNMemory src, size_t mem_size,
                                               void* ctx);
 
 /* Clones the SUNMemoryHelper */
 SUNDIALS_EXPORT SUNMemoryHelper SUNMemoryHelper_Clone(SUNMemoryHelper);
 
 /* Frees the SUNMemoryHelper */
-SUNDIALS_EXPORT void SUNMemoryHelper_Destroy(SUNMemoryHelper);
+SUNDIALS_EXPORT int SUNMemoryHelper_Destroy(SUNMemoryHelper);
+
+/*
+ * Utility SUNMemoryHelper functions.
+ */
+
+/* Creates an empty SUNMemoryHelper object */
+SUNDIALS_EXPORT SUNMemoryHelper SUNMemoryHelper_NewEmpty();
+
+/* Copyies the SUNMemoryHelper ops structure from src->ops to dst->ops. */
+SUNDIALS_EXPORT int SUNMemoryHelper_CopyOps(SUNMemoryHelper src,
+                                            SUNMemoryHelper dst);
+
+/* Checks that all required SUNMemoryHelper ops are provided */
+SUNDIALS_EXPORT
+booleantype SUNMemoryHelper_ImplementsRequiredOps(SUNMemoryHelper);
 
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 # IDA
-### Version 5.4.0 (Aug 2020)
+### Version 5.4.0 (Sep 2020)
 
 **Alan C. Hindmarsh and Radu Serban  
   Center for Applied Scientific Computing, LLNL**
@@ -45,10 +45,10 @@ the "SUNDIALS Release History" appendix of the IDA User Guide.
 ## References
 
 * A. C. Hindmarsh, R. Serban, and A. Collier, "User Documentation for IDA v5.4.0,"
-  LLNL technical report UCRL-SM-208112, Aug 2020.
+  LLNL technical report UCRL-SM-208112, Sep 2020.
 
 * A. C. Hindmarsh, R. Serban, and A. Collier, "Example Programs for IDA v5.4.0,"
-  LLNL technical report UCRL-SM-208113, Aug 2020.
+  LLNL technical report UCRL-SM-208113, Sep 2020.
 
 * A. C. Hindmarsh, P. N. Brown, K. E. Grant, S. L. Lee, R. Serban,
   D. E. Shumaker, and C. S. Woodward, "SUNDIALS, Suite of Nonlinear and

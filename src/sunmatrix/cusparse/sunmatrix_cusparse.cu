@@ -94,27 +94,27 @@ public:
 
   virtual size_t gridSize(size_t numWorkElements, size_t blockDim = 0) const
   {
-    return (numWorkElements + blockDim - 1)/blockDim;
+    return(numWorkElements + blockDim - 1)/blockDim;
   }
 
   virtual size_t blockSize(size_t numWorkElements = 0, size_t gridDim = 0) const
   {
-    return max_block_size(CUDA_WARP_SIZE*(numWorkElements + CUDA_WARP_SIZE - 1)/CUDA_WARP_SIZE);
+    return(max_block_size(CUDA_WARP_SIZE*(numWorkElements + CUDA_WARP_SIZE - 1)/CUDA_WARP_SIZE));
   }
 
   virtual const cudaStream_t* stream() const
   {
-    return &stream_;
+    return(&stream_);
   }
 
   virtual CudaExecPolicy* clone() const
   {
-    return static_cast<CudaExecPolicy*>(new SUNCuSparseMatrixExecPolicy(*this));
+    return(static_cast<CudaExecPolicy*>(new SUNCuSparseMatrixExecPolicy(*this)));
   }
 
   static size_t max_block_size(int val)
   {
-    return ( (val > MAX_CUDA_BLOCKSIZE) ? MAX_CUDA_BLOCKSIZE : val );
+    return((val > MAX_CUDA_BLOCKSIZE) ? MAX_CUDA_BLOCKSIZE : val );
   }
 
 private:
@@ -128,32 +128,44 @@ private:
 SUNMatrix SUNMatrix_cuSparse_NewCSR(int M, int N, int NNZ, cusparseHandle_t cusp)
 {
   SUNMemory d_colind, d_rowptr, d_values;
+  int alloc_fail = 0;
 
   /* return with NULL matrix on illegal input */
   if ( (M <= 0) || (N <= 0) || (NNZ < 0) )
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_NewCSR_cuSparse: illegal value(s) for M, N, or NNZ\n");
-    return NULL;
+    return(NULL);
   }
 
   SUNMatrix A = SUNMatrix_cuSparse_NewEmpty();
   if (A == NULL)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_NewCSR_cuSparse: SUNMatrix_cuSparse_NewEmpty returned NULL\n");
-    return NULL;
+    return(NULL);
+  }
+
+  SMCU_MEMHELP(A) = SUNMemoryHelper_Cuda();
+  if (SMCU_MEMHELP(A) == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_NewCSR_cuSparse: SUNMemoryHelper_Cuda returned NULL\n");
+    SUNMatDestroy(A);
+    return(NULL);
   }
 
   /* Allocate device memory for the matrix */
-  d_colind = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(int)*NNZ, SUNMEMTYPE_DEVICE);
-  d_rowptr = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(int)*(M+1), SUNMEMTYPE_DEVICE);
-  d_values = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(realtype)*NNZ, SUNMEMTYPE_DEVICE);
-  if (d_colind == NULL || d_rowptr == NULL || d_values == NULL)
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_colind,
+                                      sizeof(int)*NNZ, SUNMEMTYPE_DEVICE);
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_rowptr,
+                                      sizeof(int)*(M+1), SUNMEMTYPE_DEVICE);
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_values,
+                                      sizeof(realtype)*NNZ, SUNMEMTYPE_DEVICE);
+  if (alloc_fail)
   {
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_colind);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_rowptr);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   /* Choose sensible defaults */
@@ -166,7 +178,7 @@ SUNMatrix SUNMatrix_cuSparse_NewCSR(int M, int N, int NNZ, cusparseHandle_t cusp
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_rowptr);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cusparse_status = cusparseSetMatType(mat_descr, CUSPARSE_MATRIX_TYPE_GENERAL);
@@ -177,7 +189,7 @@ SUNMatrix SUNMatrix_cuSparse_NewCSR(int M, int N, int NNZ, cusparseHandle_t cusp
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cusparse_status = cusparseSetMatIndexBase(mat_descr, CUSPARSE_INDEX_BASE_ZERO);
@@ -188,7 +200,7 @@ SUNMatrix SUNMatrix_cuSparse_NewCSR(int M, int N, int NNZ, cusparseHandle_t cusp
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cudaStream_t stream;
@@ -199,7 +211,7 @@ SUNMatrix SUNMatrix_cuSparse_NewCSR(int M, int N, int NNZ, cusparseHandle_t cusp
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   /* Fill the content */
@@ -233,32 +245,40 @@ SUNMatrix SUNMatrix_cuSparse_MakeCSR(cusparseMatDescr_t mat_descr, int M, int N,
   if ( (M <= 0) || (N <= 0) || (NNZ < 0) )
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_MakeCSR_cuSparse: illegal value(s) for M, N, or NNZ\n");
-    return NULL;
+    return(NULL);
   }
 
   if ( (rowptrs == NULL) || (colind == NULL) || (data == NULL) )
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_MakeCSR_cuSparse: rowptrs, colind, or data is NULL\n");
-    return NULL;
+    return(NULL);
   }
 
   if (cusparseGetMatIndexBase(mat_descr) != CUSPARSE_INDEX_BASE_ZERO)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_MakeCSR_cuSparse: the cusparseMatDescr_t must have index base CUSPARSE_INDEX_BASE_ZERO\n");
-    return NULL;
+    return(NULL);
   }
 
   SUNMatrix A = SUNMatrix_cuSparse_NewEmpty();
   if (A == NULL)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_MakeCSR_cuSparse: SUNMatrix_cuSparse_NewEmpty returned NULL\n");
-    return NULL;
+    return(NULL);
+  }
+
+  SMCU_MEMHELP(A) = SUNMemoryHelper_Cuda();
+  if (SMCU_MEMHELP(A) == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_NewCSR_cuSparse: SUNMemoryHelper_Cuda returned NULL\n");
+    SUNMatDestroy(A);
+    return(NULL);
   }
 
   cudaStream_t stream;
   if (!SUNDIALS_CUSPARSE_VERIFY(cusparseGetStream(cusp, &stream)))
   {
-    return NULL;
+    return(NULL);
   }
 
   /* Fill content */
@@ -280,7 +300,14 @@ SUNMatrix SUNMatrix_cuSparse_MakeCSR(cusparseMatDescr_t mat_descr, int M, int N,
   SMCU_CONTENT(A)->fixed_pattern = SUNFALSE;
   SMCU_CONTENT(A)->exec_policy   = new SUNCuSparseMatrixExecPolicy(stream);
 
-  return A;
+  if (SMCU_CONTENT(A)->colind == NULL ||
+      SMCU_CONTENT(A)->rowptrs == NULL ||
+      SMCU_CONTENT(A)->data == NULL)
+  {
+    return(NULL);
+  }
+
+  return(A);
 }
 
 
@@ -288,12 +315,13 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
 {
   SUNMemory d_colind, d_rowptr, d_values;
   int M, N, NNZ;
+  int alloc_fail = 0;
 
   /* Return with NULL matrix on illegal input */
   if (blockrows != blockcols)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_NewBlockCSR: matrix must be square for the BCSR format\n");
-    return NULL;
+    return(NULL);
   }
 
   M   = nblocks * blockrows;
@@ -304,7 +332,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
   if ( (M <= 0) || (N <= 0) || (NNZ < 0) )
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_NewBlockCSR: illegal value(s) for M, N, or NNZ\n");
-    return NULL;
+    return(NULL);
   }
 
   /* Allocate the SUNMatrix object */
@@ -312,20 +340,33 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
   if (A == NULL)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_NewBlockCSR: SUNMatrix_cuSparse_NewEmpty returned NULL\n");
-    return NULL;
+    return(NULL);
+  }
+
+  SMCU_MEMHELP(A) = SUNMemoryHelper_Cuda();
+  if (SMCU_MEMHELP(A) == NULL)
+  {
+    SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_NewCSR_cuSparse: SUNMemoryHelper_Cuda returned NULL\n");
+    SUNMatDestroy(A);
+    return(NULL);
   }
 
   /* Allocate device memory for the matrix */
-  d_colind = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(int)*blocknnz, SUNMEMTYPE_DEVICE);
-  d_rowptr = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(int)*(blockrows + 1), SUNMEMTYPE_DEVICE);
-  d_values = SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), sizeof(realtype)*blocknnz*nblocks, SUNMEMTYPE_DEVICE);
-  if (d_colind == NULL || d_rowptr == NULL || d_values == NULL)
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_colind,
+                                      sizeof(int)*blocknnz, SUNMEMTYPE_DEVICE);
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_rowptr,
+                                      sizeof(int)*(blockrows + 1),
+                                      SUNMEMTYPE_DEVICE);
+  alloc_fail += SUNMemoryHelper_Alloc(SMCU_MEMHELP(A), &d_values,
+                                      sizeof(realtype)*blocknnz*nblocks,
+                                      SUNMEMTYPE_DEVICE);
+  if (alloc_fail)
   {
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_colind);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_rowptr);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   /* Choose sensible defaults */
@@ -338,7 +379,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_rowptr);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cusparse_status = cusparseSetMatType(mat_descr, CUSPARSE_MATRIX_TYPE_GENERAL);
@@ -349,7 +390,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cusparse_status = cusparseSetMatIndexBase(mat_descr, CUSPARSE_INDEX_BASE_ZERO);
@@ -360,7 +401,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   cudaStream_t stream;
@@ -371,7 +412,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), d_values);
     cusparseDestroyMatDescr(mat_descr);
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   /* Fill the content */
@@ -393,7 +434,7 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
   SMCU_CONTENT(A)->fixed_pattern = SUNFALSE;
   SMCU_CONTENT(A)->exec_policy   = new SUNCuSparseMatrixExecPolicy(stream);
 
-  return A;
+  return(A);
 }
 
 /* ------------------------------------------------------------------
@@ -403,89 +444,89 @@ SUNMatrix SUNMatrix_cuSparse_NewBlockCSR(int nblocks, int blockrows, int blockco
 int SUNMatrix_cuSparse_SparseType(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_SPARSETYPE(A);
+    return(SMCU_SPARSETYPE(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_Rows(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_ROWS(A);
+    return(SMCU_ROWS(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_Columns(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_COLUMNS(A);
+    return(SMCU_COLUMNS(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_NNZ(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_NNZ(A);
+    return(SMCU_NNZ(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int* SUNMatrix_cuSparse_IndexPointers(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_INDEXPTRSp(A);
+    return(SMCU_INDEXPTRSp(A));
   else
-    return NULL;
+    return(NULL);
 }
 
 int* SUNMatrix_cuSparse_IndexValues(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_INDEXVALSp(A);
+    return(SMCU_INDEXVALSp(A));
   else
-    return NULL;
+    return(NULL);
 }
 
 realtype* SUNMatrix_cuSparse_Data(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_DATAp(A);
+    return(SMCU_DATAp(A));
   else
-    return NULL;
+    return(NULL);
 }
 
 int SUNMatrix_cuSparse_NumBlocks(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_NBLOCKS(A);
+    return(SMCU_NBLOCKS(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_BlockRows(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_BLOCKROWS(A);
+    return(SMCU_BLOCKROWS(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_BlockColumns(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_BLOCKCOLS(A);
+    return(SMCU_BLOCKCOLS(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 int SUNMatrix_cuSparse_BlockNNZ(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_BLOCKNNZ(A);
+    return(SMCU_BLOCKNNZ(A));
   else
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 }
 
 realtype* SUNMatrix_cuSparse_BlockData(SUNMatrix A, int blockidx)
@@ -494,46 +535,46 @@ realtype* SUNMatrix_cuSparse_BlockData(SUNMatrix A, int blockidx)
   int offset;
 
   if (SUNMatGetID(A) != SUNMATRIX_CUSPARSE)
-    return NULL;
+    return(NULL);
 
   if (blockidx >= SMCU_NBLOCKS(A))
-    return NULL;
+    return(NULL);
 
   matdata = SMCU_DATAp(A);
   offset = SMCU_BLOCKNNZ(A)*blockidx;
 
-  return (&matdata[offset]);
+  return(&matdata[offset]);
 }
 
 cusparseMatDescr_t SUNMatrix_cuSparse_MatDescr(SUNMatrix A)
 {
   if (SUNMatGetID(A) == SUNMATRIX_CUSPARSE)
-    return SMCU_MATDESCR(A);
+    return(SMCU_MATDESCR(A));
   else
-    return NULL;
+    return(NULL);
 }
 
 int SUNMatrix_cuSparse_SetFixedPattern(SUNMatrix A, booleantype yesno)
 {
   if (SUNMatGetID(A) != SUNMATRIX_CUSPARSE)
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 
   SMCU_FIXEDPATTERN(A) = yesno;
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 int SUNMatrix_cuSparse_SetKernelExecPolicy(SUNMatrix A, SUNCudaExecPolicy* exec_policy)
 {
   if (SUNMatGetID(A) != SUNMATRIX_CUSPARSE || exec_policy == NULL)
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 
   if (SMCU_OWNEXEC(A)) delete SMCU_EXECPOLICY(A);
   SMCU_EXECPOLICY(A) = exec_policy;
 
   SMCU_OWNEXEC(A) = SUNFALSE;
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
@@ -545,7 +586,7 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
   int nidxvals, nidxptrs;
 
   if (SUNMatGetID(dA) != SUNMATRIX_CUSPARSE)
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 
   stream  = SMCU_EXECPOLICY(dA)->stream();
 
@@ -558,7 +599,7 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
                                         SMCU_NNZ(dA)*sizeof(realtype),
                                         (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_data);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
   switch(SMCU_SPARSETYPE(dA))
@@ -573,7 +614,7 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
       break;
     default:
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_CopyToDevice: unrecognized sparse type\n");
-      return SUNMAT_ILL_INPUT;
+      return(SUNMAT_ILL_INPUT);
   }
 
   if (h_idxptrs != NULL)
@@ -585,7 +626,7 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
                                        nidxptrs*sizeof(int),
                                        (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_idxptrs);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
   if (h_idxvals != NULL)
@@ -597,10 +638,10 @@ int SUNMatrix_cuSparse_CopyToDevice(SUNMatrix dA, realtype* h_data,
                                        nidxvals*sizeof(int),
                                        (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_idxvals);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -613,7 +654,7 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
   int nidxvals, nidxptrs;
 
   if (SUNMatGetID(dA) != SUNMATRIX_CUSPARSE)
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 
   stream = SMCU_EXECPOLICY(dA)->stream();
 
@@ -626,7 +667,7 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
                                         SMCU_NNZ(dA)*sizeof(realtype),
                                         (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_data);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
 
@@ -649,7 +690,7 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
                                        nidxptrs*sizeof(int),
                                        (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_idxptrs);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
   if (h_idxvals != NULL)
@@ -661,11 +702,11 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
                                        nidxvals*sizeof(int),
                                        (void*) stream);
     SUNMemoryHelper_Dealloc(SMCU_MEMHELP(dA), _h_idxvals);
-    if (retval != 0) return SUNMAT_OPERATION_FAIL;
+    if (retval != 0) return(SUNMAT_OPERATION_FAIL);
   }
 
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 /*
@@ -677,7 +718,7 @@ int SUNMatrix_cuSparse_CopyFromDevice(SUNMatrix dA, realtype* h_data,
 
 SUNMatrix_ID SUNMatGetID_cuSparse(SUNMatrix A)
 {
-  return SUNMATRIX_CUSPARSE;
+  return(SUNMATRIX_CUSPARSE);
 }
 
 /* Returns a new matrix allocated to have the same structure as A,
@@ -705,7 +746,7 @@ SUNMatrix SUNMatClone_cuSparse(SUNMatrix A)
   delete SMCU_EXECPOLICY(B);
   SMCU_EXECPOLICY(B) = SMCU_EXECPOLICY(A)->clone();
 
-  return B;
+  return(B);
 }
 
 
@@ -717,9 +758,16 @@ void SUNMatDestroy_cuSparse(SUNMatrix A)
   /* free content */
   if (A->content != NULL)
   {
-    SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_DATA(A));
-    SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_INDEXPTRS(A));
-    SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_INDEXVALS(A));
+    if (SMCU_MEMHELP(A))
+    {
+      SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_DATA(A));
+      SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_INDEXPTRS(A));
+      SUNMemoryHelper_Dealloc(SMCU_MEMHELP(A), SMCU_INDEXVALS(A));
+    }
+    else
+    {
+      SUNDIALS_DEBUG_PRINT("WARNING in SUNMatDestroy_cuSparse: mem_helper was NULL when trying to dealloc data, this could result in a memory leak\n");
+    }
 
     if (SMCU_OWNMATD(A))
     {
@@ -758,7 +806,7 @@ int SUNMatZero_cuSparse(SUNMatrix A)
 
   /* set all data to zero */
   cuerr = cudaMemsetAsync(SMCU_DATAp(A), 0, SMCU_NNZ(A)*sizeof(realtype), stream);
-  if (!SUNDIALS_CUDA_VERIFY(cuerr)) return SUNMAT_OPERATION_FAIL;
+  if (!SUNDIALS_CUDA_VERIFY(cuerr)) return(SUNMAT_OPERATION_FAIL);
 
   /* set all rowptrs to zero unless the sparsity pattern is fixed */
   if (!SMCU_FIXEDPATTERN(A))
@@ -766,16 +814,16 @@ int SUNMatZero_cuSparse(SUNMatrix A)
     cuerr = cudaMemsetAsync(SMCU_INDEXPTRSp(A), 0,
                             (SMCU_BLOCKROWS(A)+1)*sizeof(int),
                             stream);
-    if (!SUNDIALS_CUDA_VERIFY(cuerr)) return SUNMAT_OPERATION_FAIL;
+    if (!SUNDIALS_CUDA_VERIFY(cuerr)) return(SUNMAT_OPERATION_FAIL);
 
     /* set all colind to zero */
     cuerr = cudaMemsetAsync(SMCU_INDEXVALSp(A), 0,
                             SMCU_BLOCKNNZ(A)*sizeof(int),
                             stream);
-    if (!SUNDIALS_CUDA_VERIFY(cuerr)) return SUNMAT_OPERATION_FAIL;
+    if (!SUNDIALS_CUDA_VERIFY(cuerr)) return(SUNMAT_OPERATION_FAIL);
   }
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -787,7 +835,7 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
 
   /* Verify that src and dst are compatible */
   if (!SMCompatible_cuSparse(src, dst))
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
 
   stream = SMCU_EXECPOLICY(src)->stream();
 
@@ -796,14 +844,14 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
   if (SMCU_NNZ(dst) < SMCU_NNZ(src))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatCopy_cuSparse: the destination matrix has less nonzeros than the source\n");
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
   }
 
   /* Zero out dst so that copy works correctly */
   if (SUNMatZero_cuSparse(dst) != SUNMAT_SUCCESS)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatCopy_cuSparse: SUNMatZero_cuSparse failed\n");
-    return SUNMAT_OPERATION_FAIL;
+    return(SUNMAT_OPERATION_FAIL);
   }
 
   /* Copy the data over */
@@ -812,7 +860,7 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
                                      SMCU_DATA(src),
                                      SMCU_NNZ(src)*sizeof(realtype),
                                      (void*) stream);
-  if (retval) return SUNMAT_OPERATION_FAIL;
+  if (retval) return(SUNMAT_OPERATION_FAIL);
 
   /* Copy the row pointers over */
   retval = SUNMemoryHelper_CopyAsync(SMCU_MEMHELP(src),
@@ -820,7 +868,7 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
                                      SMCU_INDEXPTRS(src),
                                      (SMCU_BLOCKROWS(src)+1)*sizeof(int),
                                      (void*) stream);
-  if (retval) return SUNMAT_OPERATION_FAIL;
+  if (retval) return(SUNMAT_OPERATION_FAIL);
 
   /* Copy the column indices over */
   retval = SUNMemoryHelper_CopyAsync(SMCU_MEMHELP(src),
@@ -828,9 +876,9 @@ int SUNMatCopy_cuSparse(SUNMatrix src, SUNMatrix dst)
                                      SMCU_INDEXVALS(src),
                                      SMCU_BLOCKNNZ(src)*sizeof(int),
                                      (void*) stream);
-  if (retval) return SUNMAT_OPERATION_FAIL;
+  if (retval) return(SUNMAT_OPERATION_FAIL);
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -919,15 +967,15 @@ int SUNMatScaleAddI_cuSparse(realtype c, SUNMatrix A)
       break;
     default:
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMatScaleAddI_cuSparse: sparse type not recognized\n");
-      return SUNMAT_ILL_INPUT;
+      return(SUNMAT_ILL_INPUT);
   }
 
 #ifdef SUNDIALS_DEBUG_CUDA_LASTERROR
   cudaDeviceSynchronize();
-  if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return SUNMAT_OPERATION_FAIL;
+  if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return(SUNMAT_OPERATION_FAIL);
 #endif
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -940,7 +988,7 @@ int SUNMatScaleAdd_cuSparse(realtype c, SUNMatrix A, SUNMatrix B)
   if (!SMCompatible_cuSparse(A, B))
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatScaleAdd_cuSparse: SUNMatScaleAdd_cuSparse failed\n");
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
   }
 
   stream = *SMCU_EXECPOLICY(A)->stream();
@@ -1019,15 +1067,15 @@ int SUNMatScaleAdd_cuSparse(realtype c, SUNMatrix A, SUNMatrix B)
       break;
     default:
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMatScaleAdd_cuSparse: sparse type not recognized\n");
-      return SUNMAT_ILL_INPUT;
+      return(SUNMAT_ILL_INPUT);
   }
 
 #ifdef SUNDIALS_DEBUG_CUDA_LASTERROR
   cudaDeviceSynchronize();
-  if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return SUNMAT_OPERATION_FAIL;
+  if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return(SUNMAT_OPERATION_FAIL);
 #endif
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -1039,7 +1087,7 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
        (SMCU_ROWS(A) != N_VGetLength(y)) )
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatMatvec_cuSparse: dimensions do not agree\n");
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
   }
 
   realtype *d_xdata = N_VGetDeviceArrayPointer_Cuda(x);
@@ -1086,7 +1134,7 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
 #endif
     }
 
-    if (!SUNDIALS_CUSPARSE_VERIFY(cusparse_status)) return SUNMAT_OPERATION_FAIL;
+    if (!SUNDIALS_CUSPARSE_VERIFY(cusparse_status)) return(SUNMAT_OPERATION_FAIL);
   }
   else if (SMCU_SPARSETYPE(A) == SUNMAT_CUSPARSE_BCSR)
   {
@@ -1134,16 +1182,16 @@ int SUNMatMatvec_cuSparse(SUNMatrix A, N_Vector x, N_Vector y)
 
 #ifdef SUNDIALS_DEBUG_CUDA_LASTERROR
     cudaDeviceSynchronize();
-    if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return SUNMAT_OPERATION_FAIL;
+    if (!SUNDIALS_CUDA_VERIFY(cudaGetLastError())) return(SUNMAT_OPERATION_FAIL);
 #endif
   }
   else
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatMatvec_cuSparse: sparse type not recognized\n");
-    return SUNMAT_ILL_INPUT;
+    return(SUNMAT_ILL_INPUT);
   }
 
-  return SUNMAT_SUCCESS;
+  return(SUNMAT_SUCCESS);
 }
 
 
@@ -1162,17 +1210,17 @@ static booleantype SMCompatible_cuSparse(SUNMatrix A, SUNMatrix B)
   /* both matrices must be sparse */
   if ( (SUNMatGetID(A) != SUNMATRIX_CUSPARSE) ||
        (SUNMatGetID(B) != SUNMATRIX_CUSPARSE) )
-    return SUNFALSE;
+    return(SUNFALSE);
 
   /* both matrices must have the same shape and sparsity type */
   if (SMCU_ROWS(A) != SMCU_ROWS(B))
-    return SUNFALSE;
+    return(SUNFALSE);
   if (SMCU_COLUMNS(A) != SMCU_COLUMNS(B))
-    return SUNFALSE;
+    return(SUNFALSE);
   if (SMCU_SPARSETYPE(A) != SMCU_SPARSETYPE(B))
-    return SUNFALSE;
+    return(SUNFALSE);
 
-  return SUNTRUE;
+  return(SUNTRUE);
 }
 
 /* -----------------------------------------------------------------
@@ -1187,7 +1235,7 @@ SUNMatrix SUNMatrix_cuSparse_NewEmpty()
   if (A == NULL)
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_NewEmpty: SUNMatNewEmpty failed\n");
-    return NULL;
+    return(NULL);
   }
 
   /* Attach operations */
@@ -1207,12 +1255,12 @@ SUNMatrix SUNMatrix_cuSparse_NewEmpty()
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMatrix_cuSparse_NewEmpty: failed to malloc content\n");
     SUNMatDestroy(A);
-    return NULL;
+    return(NULL);
   }
 
   /* Attach content */
   A->content = content;
-  content->mem_helper = SUNMemoryHelper_Cuda();
+  content->mem_helper = NULL;
 
-  return A;
+  return(A);
 }

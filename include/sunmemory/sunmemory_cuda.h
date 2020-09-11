@@ -31,10 +31,10 @@ SUNMemoryHelper SUNMemoryHelper_Cuda();
 
 /* SUNMemoryHelper functions */
 
-SUNDIALS_EXPORT SUNMemory SUNMemoryHelper_Alloc_Cuda(SUNMemoryHelper helper,
-                                                     size_t memsize,
-                                                     SUNMemoryType mem_type);
-SUNDIALS_EXPORT void SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem);
+SUNDIALS_EXPORT int SUNMemoryHelper_Alloc_Cuda(SUNMemoryHelper helper, SUNMemory* memptr,
+                                               size_t memsize, SUNMemoryType mem_type);
+
+SUNDIALS_EXPORT int SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem);
 
 SUNDIALS_EXPORT int SUNMemoryHelper_Copy_Cuda(SUNMemoryHelper helper, SUNMemory dst,
                                               SUNMemory src, size_t memory_size);

@@ -24,32 +24,24 @@
 SUNMemoryHelper SUNMemoryHelper_Cuda()
 {
   SUNMemoryHelper helper;
-  SUNMemoryHelper_Ops ops;
 
-  /* Create the ops */
-  ops = (SUNMemoryHelper_Ops) malloc(sizeof(struct _SUNMemoryHelper_Ops));
-  memset(ops, 0, sizeof(struct _SUNMemoryHelper_Ops));
+  /* Allocate the helper */
+  helper = SUNMemoryHelper_NewEmpty();
 
   /* Set the ops */
-  ops->alloc     = SUNMemoryHelper_Alloc_Cuda;
-  ops->dealloc   = SUNMemoryHelper_Dealloc_Cuda;
-  ops->copy      = SUNMemoryHelper_Copy_Cuda;
-  ops->copyasync = SUNMemoryHelper_CopyAsync_Cuda;
-
-  /* Allocate helper */
-  helper = (SUNMemoryHelper) malloc(sizeof(struct _SUNMemoryHelper));
-  memset(helper, 0, sizeof(struct _SUNMemoryHelper));
+  helper->ops->alloc     = SUNMemoryHelper_Alloc_Cuda;
+  helper->ops->dealloc   = SUNMemoryHelper_Dealloc_Cuda;
+  helper->ops->copy      = SUNMemoryHelper_Copy_Cuda;
+  helper->ops->copyasync = SUNMemoryHelper_CopyAsync_Cuda;
 
   /* Attach content and ops */
   helper->content = NULL;
-  helper->ops     = ops;
 
   return helper;
 }
 
-SUNMemory SUNMemoryHelper_Alloc_Cuda(SUNMemoryHelper helper,
-                                     size_t memsize,
-                                     SUNMemoryType mem_type)
+int SUNMemoryHelper_Alloc_Cuda(SUNMemoryHelper helper, SUNMemory* memptr,
+                               size_t mem_size, SUNMemoryType mem_type)
 {
   SUNMemory mem = SUNMemoryNewEmpty();
 
@@ -59,54 +51,55 @@ SUNMemory SUNMemoryHelper_Alloc_Cuda(SUNMemoryHelper helper,
 
   if (mem_type == SUNMEMTYPE_HOST)
   {
-    mem->ptr = malloc(memsize);
+    mem->ptr = malloc(mem_size);
     if (mem->ptr == NULL)
     {
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc_Cuda: malloc returned NULL\n");
       free(mem);
-      return(NULL);
+      return(-1);
     }
   }
   else if (mem_type == SUNMEMTYPE_PINNED)
   {
-    if (!SUNDIALS_CUDA_VERIFY(cudaMallocHost(&(mem->ptr), memsize)))
+    if (!SUNDIALS_CUDA_VERIFY(cudaMallocHost(&(mem->ptr), mem_size)))
     {
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc_Cuda: cudaMallocHost failed\n");
       free(mem);
-      return(NULL);
+      return(-1);
     }
   }
   else if (mem_type == SUNMEMTYPE_DEVICE)
   {
-    if (!SUNDIALS_CUDA_VERIFY(cudaMalloc(&(mem->ptr), memsize)))
+    if (!SUNDIALS_CUDA_VERIFY(cudaMalloc(&(mem->ptr), mem_size)))
     {
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc_Cuda: cudaMalloc failed\n");
       free(mem);
-      return(NULL);
+      return(-1);
     }
   }
   else if (mem_type == SUNMEMTYPE_UVM)
   {
-    if (!SUNDIALS_CUDA_VERIFY(cudaMallocManaged(&(mem->ptr), memsize)))
+    if (!SUNDIALS_CUDA_VERIFY(cudaMallocManaged(&(mem->ptr), mem_size)))
     {
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc_Cuda: cudaMallocManaged failed\n");
       free(mem);
-      return(NULL);
+      return(-1);
     }
   }
   else
   {
     SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Alloc_Cuda: unknown memory type\n");
     free(mem);
-    return(NULL);
+    return(-1);
   }
 
-  return(mem);
+  *memptr = mem;
+  return(0);
 }
 
-void SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem)
+int SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem)
 {
-  if (mem == NULL) return;
+  if (mem == NULL) return(0);
 
   if (mem->ptr != NULL && mem->own)
   {
@@ -120,6 +113,7 @@ void SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem)
       if (!SUNDIALS_CUDA_VERIFY(cudaFreeHost(mem->ptr)))
       {
         SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Dealloc_Cuda: cudaFreeHost failed\n");
+        return(-1);
       }
       mem->ptr = NULL;
     }
@@ -129,14 +123,19 @@ void SUNMemoryHelper_Dealloc_Cuda(SUNMemoryHelper helper, SUNMemory mem)
       if (!SUNDIALS_CUDA_VERIFY(cudaFree(mem->ptr)))
       {
         SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Dealloc_Cuda: cudaFree failed\n");
+        return(-1);
       }
       mem->ptr = NULL;
     }
     else
     {
       SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_Dealloc_Cuda: unknown memory type\n");
+      return(-1);
     }
   }
+
+  free(mem);
+  return(0);
 }
 
 int SUNMemoryHelper_Copy_Cuda(SUNMemoryHelper helper, SUNMemory dst,
@@ -173,7 +172,7 @@ int SUNMemoryHelper_Copy_Cuda(SUNMemoryHelper helper, SUNMemory dst,
                            cudaMemcpyDeviceToHost);
       }
       else if (dst->type == SUNMEMTYPE_DEVICE ||
-              dst->type == SUNMEMTYPE_UVM)
+               dst->type == SUNMEMTYPE_UVM)
       {
         cuerr = cudaMemcpy(dst->ptr, src->ptr,
                            memory_size,

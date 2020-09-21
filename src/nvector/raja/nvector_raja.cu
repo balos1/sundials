@@ -61,14 +61,6 @@ typedef struct _N_PrivateVectorContent_Raja *N_PrivateVectorContent_Raja;
 
 static int AllocateData(N_Vector v);
 
-/* ----------------------------------------------------------------
- * Returns vector type ID. Used to identify vector implementation
- * from abstract N_Vector interface.
- */
-N_Vector_ID N_VGetVectorID_Raja(N_Vector v)
-{
-  return SUNDIALS_NVEC_RAJA;
-}
 
 N_Vector N_VNewEmpty_Raja()
 {

@@ -89,31 +89,25 @@ SUNDIALS_EXPORT void N_VCopyFromDevice_Cuda(N_Vector v);
 */
 SUNDIALS_DEPRECATED void N_VSetCudaStream_Cuda(N_Vector x, cudaStream_t *stream);
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 sunindextype N_VGetLength_Cuda(N_Vector x)
 {
-  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda)x->content;
   return content->length;
 }
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 realtype *N_VGetHostArrayPointer_Cuda(N_Vector x)
 {
-  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
-  if (content->host_data == NULL)
-    return(NULL);
-  else
-    return ((realtype*) content->host_data->ptr);
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda)x->content;
+  return(content->host_data == NULL ? NULL : (realtype*)content->host_data->ptr);
 }
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
 {
-  N_VectorContent_Cuda content = (N_VectorContent_Cuda) x->content;
-  if (content->device_data == NULL)
-    return(NULL);
-  else
-    return ((realtype*) content->device_data->ptr);
+  N_VectorContent_Cuda content = (N_VectorContent_Cuda)x->content;
+  return(content->host_data == NULL ? NULL : (realtype*)content->device_data->ptr);
 }
 
 /*
@@ -121,6 +115,12 @@ realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x)
  * NVECTOR API functions
  * -----------------------------------------------------------------
  */
+
+SUNDIALS_STATIC_INLINE
+N_Vector_ID N_VGetVectorID_Cuda(N_Vector v)
+{
+  return SUNDIALS_NVEC_CUDA;
+}
 
 SUNDIALS_EXPORT N_Vector N_VCloneEmpty_Cuda(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VClone_Cuda(N_Vector w);

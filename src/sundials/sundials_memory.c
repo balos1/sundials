@@ -168,12 +168,20 @@ int SUNMemoryHelper_CopyAsync(SUNMemoryHelper helper, SUNMemory dst,
   return(helper->ops->copyasync(helper, dst, src, memory_size, ctx));
 }
 
+
 int SUNMemoryHelper_Destroy(SUNMemoryHelper helper)
 {
   if (helper->ops->destroy == NULL)
   {
-    free(helper->ops);
-    free(helper);
+    if (helper->content != NULL)
+    {
+      return(-1);
+    }
+    else
+    {
+      free(helper->ops);
+      free(helper);
+    }
   }
   else
   {
@@ -187,9 +195,16 @@ SUNMemoryHelper SUNMemoryHelper_Clone(SUNMemoryHelper helper)
 {
   if (helper->ops->clone == NULL)
   {
-    SUNMemoryHelper hclone = SUNMemoryHelper_NewEmpty();
-    if (hclone) SUNMemoryHelper_CopyOps(helper, hclone);
-    return(hclone);
+    if (helper->content != NULL)
+    {
+      return(NULL);
+    }
+    else
+    {
+      SUNMemoryHelper hclone = SUNMemoryHelper_NewEmpty();
+      if (hclone) SUNMemoryHelper_CopyOps(helper, hclone);
+      return(hclone);
+    }
   }
   else
   {

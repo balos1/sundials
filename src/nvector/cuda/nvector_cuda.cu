@@ -45,8 +45,8 @@ using namespace sundials::nvector_cuda;
 #define NVEC_CUDA_MEMHELP(x)  (NVEC_CUDA_CONTENT(x)->mem_helper)
 #define NVEC_CUDA_HDATAp(x)   ((realtype*) NVEC_CUDA_CONTENT(x)->host_data->ptr)
 #define NVEC_CUDA_DDATAp(x)   ((realtype*) NVEC_CUDA_CONTENT(x)->device_data->ptr)
-#define NVEC_CUDA_HBUFFER(x)  ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_host->ptr)
-#define NVEC_CUDA_DBUFFER(x)  ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_dev->ptr)
+#define NVEC_CUDA_HBUFFERp(x) ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_host->ptr)
+#define NVEC_CUDA_DBUFFERp(x) ((realtype*) NVEC_CUDA_PRIVATE(x)->reduce_buffer_dev->ptr)
 #define NVEC_CUDA_STREAM(x)   (NVEC_CUDA_CONTENT(x)->stream_exec_policy->stream())
 
 
@@ -60,8 +60,6 @@ struct _N_PrivateVectorContent_Cuda
   size_t          reduce_buffer_allocated_bytes; /* current size of the reduction buffer */
   SUNMemory       reduce_buffer_dev;             /* device buffer used for reductions */
   SUNMemory       reduce_buffer_host;            /* host buffer used for reductions */
-  void*           (*userallocfn)(size_t);        /* a user provided allocator (assumes managed mem) */
-  void            (*userfreefn)(void*);          /* a user provided free function */
 };
 
 typedef struct _N_PrivateVectorContent_Cuda *N_PrivateVectorContent_Cuda;
@@ -84,23 +82,30 @@ static void PostKernelLaunch();
  * backwards compatibility.
  */
 
-/* DEPRECATION NOTICE: The 2 memory functions can be removed once
+/* DEPRECATION NOTICE: The 4 functions below can be removed once
    N_VMakeWithManagedAllocator_Cuda (deprecated) is removed in the
-   next major release. The userallocfn and userfreefn can also be
-   removed from the N_PrivateVectorContent_Cuda struct. */
+   next major release. The UserAllocHelper struct can also be removed. */
 
-static int SUNMemoryHelper_UserAlloc(SUNMemoryHelper helper, SUNMemory* memptr,
-                                     size_t memsize, SUNMemoryType mem_type)
+/* Struct that we use to pack up the user
+   provided alloc and free functions. */
+typedef struct _UserAllocHelper
 {
-  N_Vector v = (N_Vector) helper->content;
+  void*  (*userallocfn)(size_t);
+  void   (*userfreefn)(void*);
+} UserAllocHelper;
+
+static int UserAlloc(SUNMemoryHelper helper, SUNMemory* memptr,
+                     size_t memsize, SUNMemoryType mem_type)
+{
+  UserAllocHelper* ua = (UserAllocHelper*) helper->content;
   SUNMemory mem = SUNMemoryNewEmpty();
 
   mem->type = SUNMEMTYPE_UVM;
-  mem->ptr  = NVEC_CUDA_PRIVATE(v)->userallocfn(memsize);
+  mem->ptr  = ua->userallocfn(memsize);
   mem->own  = SUNTRUE;
   if (mem->ptr == NULL)
   {
-    SUNDIALS_DEBUG_PRINT("ERROR in SUNMemoryHelper_UserAlloc: user provided alloc failed\n");
+    SUNDIALS_DEBUG_PRINT("ERROR in UserAlloc: user provided alloc failed\n");
     free(mem);
     return(-1);
   }
@@ -109,23 +114,42 @@ static int SUNMemoryHelper_UserAlloc(SUNMemoryHelper helper, SUNMemory* memptr,
   return(0);
 }
 
-static int SUNMemoryHelper_UserDealloc(SUNMemoryHelper helper, SUNMemory mem)
+static int UserDealloc(SUNMemoryHelper helper, SUNMemory mem)
 {
-  N_Vector v = (N_Vector) helper->content;
-  NVEC_CUDA_PRIVATE(v)->userfreefn(mem->ptr);
-  mem->ptr = NULL;
+  UserAllocHelper* ua = (UserAllocHelper*) helper->content;
+  if (mem->own)
+  {
+    ua->userfreefn(mem->ptr);
+    mem->ptr = NULL;
+  }
   free(mem);
   return(0);
 }
 
-
-/* ----------------------------------------------------------------
- * Returns vector type ID. Used to identify vector implementation
- * from abstract N_Vector interface.
- */
-N_Vector_ID N_VGetVectorID_Cuda(N_Vector v)
+static SUNMemoryHelper HelperClone(SUNMemoryHelper helper)
 {
-  return SUNDIALS_NVEC_CUDA;
+  UserAllocHelper* uaclone;
+  UserAllocHelper* ua = (UserAllocHelper*) helper->content;
+  SUNMemoryHelper hclone = SUNMemoryHelper_NewEmpty();
+
+  SUNMemoryHelper_CopyOps(helper, hclone);
+
+  uaclone = (UserAllocHelper*) malloc(sizeof(UserAllocHelper));
+  uaclone->userallocfn = ua->userallocfn;
+  uaclone->userfreefn  = ua->userfreefn;
+
+  hclone->content = uaclone;
+
+  return(hclone);
+}
+
+static int HelperDestroy(SUNMemoryHelper helper)
+{
+  free(helper->content);
+  helper->content = NULL;
+  free(helper->ops);
+  free(helper);
+  return(0);
 }
 
 N_Vector N_VNewEmpty_Cuda()
@@ -210,8 +234,6 @@ N_Vector N_VNewEmpty_Cuda()
   NVEC_CUDA_CONTENT(v)->own_helper                    = SUNFALSE;
   NVEC_CUDA_CONTENT(v)->own_exec                      = SUNTRUE;
   NVEC_CUDA_PRIVATE(v)->use_managed_mem               = SUNFALSE;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = NULL;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
@@ -442,6 +464,7 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
                                           void* (*allocfn)(size_t),
                                           void (*freefn)(void*))
 {
+  UserAllocHelper* ua;
   N_Vector v;
 
   v = NULL;
@@ -465,8 +488,6 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_dev             = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_host            = NULL;
   NVEC_CUDA_PRIVATE(v)->reduce_buffer_allocated_bytes = 0;
-  NVEC_CUDA_PRIVATE(v)->userallocfn                   = allocfn;
-  NVEC_CUDA_PRIVATE(v)->userfreefn                    = freefn;
 
   if (NVEC_CUDA_MEMHELP(v) == NULL)
   {
@@ -475,9 +496,14 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
     return(NULL);
   }
 
-  NVEC_CUDA_CONTENT(v)->mem_helper->content           = v;
-  NVEC_CUDA_CONTENT(v)->mem_helper->ops->alloc        = SUNMemoryHelper_UserAlloc;
-  NVEC_CUDA_CONTENT(v)->mem_helper->ops->dealloc      = SUNMemoryHelper_UserDealloc;
+  ua = (UserAllocHelper*) malloc(sizeof(UserAllocHelper));
+  ua->userallocfn                    = allocfn;
+  ua->userfreefn                     = freefn;
+  NVEC_CUDA_MEMHELP(v)->content      = (void*) ua;
+  NVEC_CUDA_MEMHELP(v)->ops->alloc   = UserAlloc;
+  NVEC_CUDA_MEMHELP(v)->ops->dealloc = UserDealloc;
+  NVEC_CUDA_MEMHELP(v)->ops->clone   = HelperClone;
+  NVEC_CUDA_MEMHELP(v)->ops->destroy = HelperDestroy;
 
   if (AllocateData(v))
   {
@@ -488,30 +514,6 @@ N_Vector N_VMakeWithManagedAllocator_Cuda(sunindextype length,
 
   return(v);
 }
-
-
-/* -----------------------------------------------------------------
- * Function to return the global length of the vector.
- * This is defined as an inline function in nvector_raja.h, so
- * we just mark it as extern here.
- */
-extern sunindextype N_VGetLength_Cuda(N_Vector x);
-
-/* ----------------------------------------------------------------------------
- * Return pointer to the raw host data.
- * This is defined as an inline function in nvector_raja.h, so
- * we just mark it as extern here.
- */
-
-extern realtype *N_VGetHostArrayPointer_Cuda(N_Vector x);
-
-/* ----------------------------------------------------------------------------
- * Return pointer to the raw device data.
- * This is defined as an inline function in nvector_raja.h, so
- * we just mark it as extern here.
- */
-
-extern realtype *N_VGetDeviceArrayPointer_Cuda(N_Vector x);
 
 /* ----------------------------------------------------------------------------
  * Set pointer to the raw host data. Does not free the existing pointer.
@@ -764,7 +766,6 @@ N_Vector N_VClone_Cuda(N_Vector w)
   return(v);
 }
 
-
 void N_VDestroy_Cuda(N_Vector v)
 {
   N_VectorContent_Cuda vc;
@@ -815,10 +816,6 @@ void N_VDestroy_Cuda(N_Vector v)
     vc->device_data = NULL;
     if (vc->own_helper) SUNMemoryHelper_Destroy(vc->mem_helper);
     vc->mem_helper = NULL;
-  }
-  else
-  {
-    SUNDIALS_DEBUG_PRINT("WARNING in N_VDestroy_Cuda: mem_helper was NULL when trying to dealloc data, this could result in a memory leak\n");
   }
 
   /* free content struct */
@@ -978,14 +975,14 @@ realtype N_VDotProd_Cuda(N_Vector X, N_Vector Y)
   (
     NVEC_CUDA_DDATAp(X),
     NVEC_CUDA_DDATAp(Y),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1004,14 +1001,14 @@ realtype N_VMaxNorm_Cuda(N_Vector X)
   maxNormKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     NVEC_CUDA_DDATAp(X),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Finish reduction on CPU if there are less than two blocks of data left.
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1031,14 +1028,14 @@ realtype N_VWSqrSumLocal_Cuda(N_Vector X, N_Vector W)
   (
     NVEC_CUDA_DDATAp(X),
     NVEC_CUDA_DDATAp(W),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1065,14 +1062,14 @@ realtype N_VWSqrSumMaskLocal_Cuda(N_Vector X, N_Vector W, N_Vector Id)
     NVEC_CUDA_DDATAp(X),
     NVEC_CUDA_DDATAp(W),
     NVEC_CUDA_DDATAp(Id),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1100,14 +1097,14 @@ realtype N_VMin_Cuda(N_Vector X)
   (
     maxVal,
     NVEC_CUDA_DDATAp(X),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1132,14 +1129,14 @@ realtype N_VL1Norm_Cuda(N_Vector X)
   L1NormKernel<realtype, sunindextype><<<grid, block, shMemSize, stream>>>
   (
     NVEC_CUDA_DDATAp(X),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return gpu_result;
 }
@@ -1175,14 +1172,14 @@ booleantype N_VInvTest_Cuda(N_Vector X, N_Vector Z)
   (
     NVEC_CUDA_DDATAp(X),
     NVEC_CUDA_DDATAp(Z),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return (gpu_result < HALF);
 }
@@ -1203,14 +1200,14 @@ booleantype N_VConstrMask_Cuda(N_Vector C, N_Vector X, N_Vector M)
     NVEC_CUDA_DDATAp(C),
     NVEC_CUDA_DDATAp(X),
     NVEC_CUDA_DDATAp(M),
-    NVEC_CUDA_DBUFFER(X),
+    NVEC_CUDA_DBUFFERp(X),
     NVEC_CUDA_CONTENT(X)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(X);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(X)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(X)[0];
 
   return (gpu_result < HALF);
 }
@@ -1233,17 +1230,18 @@ realtype N_VMinQuotient_Cuda(N_Vector num, N_Vector denom)
     maxVal,
     NVEC_CUDA_DDATAp(num),
     NVEC_CUDA_DDATAp(denom),
-    NVEC_CUDA_DBUFFER(num),
+    NVEC_CUDA_DBUFFERp(num),
     NVEC_CUDA_CONTENT(num)->length
   );
   PostKernelLaunch();
 
   // Get result from the GPU
   CopyReductionBufferFromDevice(num);
-  realtype gpu_result = NVEC_CUDA_HBUFFER(num)[0];
+  realtype gpu_result = NVEC_CUDA_HBUFFERp(num)[0];
 
   return gpu_result;
 }
+
 
 /*
  * -----------------------------------------------------------------
@@ -1423,7 +1421,6 @@ int N_VDotProdMulti_Cuda(int nvec, N_Vector X, N_Vector* Y, realtype* dots)
 }
 
 
-
 /*
  * -----------------------------------------------------------------------------
  * vector array operations
@@ -1500,7 +1497,6 @@ int N_VLinearSumVectorArray_Cuda(int nvec, realtype a, N_Vector* X, realtype b,
   return(0);
 }
 
-
 int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
 {
   cudaError_t err;
@@ -1563,7 +1559,6 @@ int N_VScaleVectorArray_Cuda(int nvec, realtype* c, N_Vector* X, N_Vector* Z)
 
   return(0);
 }
-
 
 int N_VConstVectorArray_Cuda(int nvec, realtype c, N_Vector* Z)
 {
@@ -1753,7 +1748,6 @@ int N_VWrmsNormMaskVectorArray_Cuda(int nvec, N_Vector* X, N_Vector* W,
   return(0);
 }
 
-
 int N_VScaleAddMultiVectorArray_Cuda(int nvec, int nsum, realtype* c,
                                      N_Vector* X, N_Vector** Y, N_Vector** Z)
 {
@@ -1834,7 +1828,6 @@ int N_VScaleAddMultiVectorArray_Cuda(int nvec, int nsum, realtype* c,
 
   return(0);
 }
-
 
 int N_VLinearCombinationVectorArray_Cuda(int nvec, int nsum, realtype* c,
                                          N_Vector** X, N_Vector* Z)
@@ -1951,7 +1944,6 @@ int N_VEnableFusedOps_Cuda(N_Vector v, booleantype tf)
   /* return success */
   return(0);
 }
-
 
 int N_VEnableLinearCombination_Cuda(N_Vector v, booleantype tf)
 {

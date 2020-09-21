@@ -152,6 +152,20 @@
 
 /* Mark SUNDIALS function as inline.
  */
-#ifndef SUNDIALS_INLINE
-#define SUNDIALS_INLINE inline
+#ifndef SUNDIALS_CXX_INLINE
+#define SUNDIALS_CXX_INLINE inline
 #endif
+
+#ifndef SUNDIALS_C_INLINE
+#define SUNDIALS_C_INLINE inline
+#endif
+
+#ifdef __cplusplus
+#define SUNDIALS_INLINE SUNDIALS_CXX_INLINE
+#else
+#define SUNDIALS_INLINE SUNDIALS_C_INLINE
+#endif
+
+/* Mark SUNDIALS function as static inline.
+ */
+#define SUNDIALS_STATIC_INLINE static SUNDIALS_INLINE

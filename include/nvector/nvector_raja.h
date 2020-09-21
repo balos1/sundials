@@ -67,32 +67,27 @@ SUNDIALS_EXPORT booleantype N_VIsManagedMemory_Raja(N_Vector x);
 SUNDIALS_EXPORT void N_VCopyToDevice_Raja(N_Vector v);
 SUNDIALS_EXPORT void N_VCopyFromDevice_Raja(N_Vector v);
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 sunindextype N_VGetLength_Raja(N_Vector x)
 {
-  N_VectorContent_Raja content = (N_VectorContent_Raja) x->content;
+  N_VectorContent_Raja content = (N_VectorContent_Raja)x->content;
   return content->length;
 }
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 realtype *N_VGetHostArrayPointer_Raja(N_Vector x)
 {
-  N_VectorContent_Raja content = (N_VectorContent_Raja) x->content;
-  if (content->host_data == NULL)
-    return(NULL);
-  else
-    return ((realtype*) content->host_data->ptr);
+  N_VectorContent_Raja content = (N_VectorContent_Raja)x->content;
+  return(content->host_data == NULL ? NULL : (realtype*)content->host_data->ptr);
 }
 
-SUNDIALS_EXPORT SUNDIALS_INLINE
+SUNDIALS_STATIC_INLINE
 realtype *N_VGetDeviceArrayPointer_Raja(N_Vector x)
 {
-  N_VectorContent_Raja content = (N_VectorContent_Raja) x->content;
-  if (content->device_data == NULL)
-    return(NULL);
-  else
-    return ((realtype*) content->device_data->ptr);
+  N_VectorContent_Raja content = (N_VectorContent_Raja)x->content;
+  return(content->host_data == NULL ? NULL : (realtype*)content->device_data->ptr);
 }
+
 
 /*
  * -----------------------------------------------------------------
@@ -100,7 +95,12 @@ realtype *N_VGetDeviceArrayPointer_Raja(N_Vector x)
  * -----------------------------------------------------------------
  */
 
-SUNDIALS_EXPORT N_Vector_ID N_VGetVectorID_Raja(N_Vector v);
+SUNDIALS_STATIC_INLINE
+N_Vector_ID N_VGetVectorID_Raja(N_Vector v)
+{
+  return SUNDIALS_NVEC_RAJA;
+}
+
 SUNDIALS_EXPORT N_Vector N_VCloneEmpty_Raja(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VClone_Raja(N_Vector w);
 SUNDIALS_EXPORT void N_VDestroy_Raja(N_Vector v);

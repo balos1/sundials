@@ -26,11 +26,7 @@
 #include "test_nvector.h"
 
 /* Managed or unmanaged memory options */
-enum mem_type { UNMANAGED, MANAGED, CUSTOM };
-
-/* RAJA vector specific tests */
-static int Test_N_VMake_Raja(N_Vector X, sunindextype length, int myid);
-static int Test_N_VMakeManaged_Raja(N_Vector X, sunindextype length, int myid);
+enum mem_type { UNMANAGED, MANAGED, SUNMEMORY };
 
 /* ----------------------------------------------------------------------
  * Main NVector Testing Routine
@@ -61,7 +57,7 @@ int main(int argc, char *argv[])
   SetTiming(print_timing, 0);
 
   /* test with both memory variants */
-  for (memtype=UNMANAGED; memtype<=CUSTOM; ++memtype) {
+  for (memtype=UNMANAGED; memtype<=SUNMEMORY; ++memtype) {
     SUNMemoryHelper mem_helper = NULL;
 
     printf("=====> Beginning setup\n\n");
@@ -70,15 +66,15 @@ int main(int argc, char *argv[])
       printf("Testing RAJA N_Vector\n");
     } else if (memtype==MANAGED) {
       printf("Testing RAJA N_Vector with managed memory\n");
-    } else if (memtype==CUSTOM) {
+    } else if (memtype==SUNMEMORY) {
       printf("Testing RAJA N_Vector with custom allocator\n");
       mem_helper = MyMemoryHelper();
     }
     printf("Vector length: %ld \n", (long int) length);
     /* Create new vectors */
-    if (memtype == UNMANAGED)    X = N_VNew_Raja(length);
-    else if (memtype == MANAGED) X = N_VNewManaged_Raja(length);
-    else if (memtype == CUSTOM)  X = N_VNewWithMemHelp_Raja(length, SUNFALSE, mem_helper);
+    if (memtype == UNMANAGED)       X = N_VNew_Raja(length);
+    else if (memtype == MANAGED)    X = N_VNewManaged_Raja(length);
+    else if (memtype == SUNMEMORY)  X = N_VNewWithMemHelp_Raja(length, SUNFALSE, mem_helper);
     if (X == NULL) {
       if (mem_helper) SUNMemoryHelper_Destroy(mem_helper);
       printf("FAIL: Unable to create a new vector \n\n");
@@ -165,10 +161,7 @@ int main(int argc, char *argv[])
     printf("\nTesting fused and vector array operations (disabled):\n\n");
 
     /* create vector and disable all fused and vector array operations */
-    if (memtype == UNMANAGED)    U = N_VNew_Raja(length);
-    else if (memtype == MANAGED) U = N_VNewManaged_Raja(length);
-    else if (memtype == CUSTOM)  U = N_VNewWithMemHelp_Raja(length, SUNFALSE, mem_helper);
-
+    U = N_VClone(X);
     retval = N_VEnableFusedOps_Raja(U, SUNFALSE);
     if (U == NULL || retval != 0) {
       N_VDestroy(X);
@@ -197,10 +190,7 @@ int main(int argc, char *argv[])
     printf("\nTesting fused and vector array operations (enabled):\n\n");
 
     /* create vector and enable all fused and vector array operations */
-    if (memtype == UNMANAGED)    V = N_VNew_Raja(length);
-    else if (memtype == MANAGED) V = N_VNewManaged_Raja(length);
-    else if (memtype == CUSTOM)  V = N_VNewWithMemHelp_Raja(length, SUNFALSE, mem_helper);
-
+    V = N_VClone(X);
     retval = N_VEnableFusedOps_Raja(V, SUNTRUE);
     if (V == NULL || retval != 0) {
       N_VDestroy(X);
@@ -239,14 +229,6 @@ int main(int argc, char *argv[])
     fails += Test_N_VConstrMaskLocal(X, Y, Z, length, 0);
     fails += Test_N_VMinQuotientLocal(X, Y, length, 0);
 
-    /* RAJA specific tests */
-    printf("\nTesting raja vector specific operations:\n\n");
-    if (memtype == UNMANAGED) {
-      fails += Test_N_VMake_Raja(X, length, 0);
-    } else if (memtype == MANAGED) {
-      fails += Test_N_VMakeManaged_Raja(X, length, 0);
-    }
-
     printf("\n=====> Beginning teardown\n");
 
     /* Free vectors */
@@ -275,138 +257,6 @@ int main(int argc, char *argv[])
   return(fails);
 }
 
-/* ----------------------------------------------------------------------
- * RAJA specific tests
- * --------------------------------------------------------------------*/
-
-/* --------------------------------------------------------------------
- * Test for the RAJA N_Vector N_VMake_Raja function. Requires N_VConst
- * to check data.
- */
-
- int Test_N_VMake_Raja(N_Vector X, sunindextype length, int myid)
-{
-  int failure = 0;
-  realtype *h_data, *d_data;
-  N_Vector Y;
-
-  N_VConst(NEG_HALF, X);
-  N_VCopyFromDevice_Raja(X);
-
-  h_data = N_VGetHostArrayPointer_Raja(X);
-  d_data = N_VGetDeviceArrayPointer_Raja(X);
-
-  /* Case 1: h_data and d_data are not null */
-  Y = N_VMake_Raja(length, h_data, d_data);
-  if (Y == NULL) {
-    printf(">>> FAILED test -- N_VMake_Raja, Proc %d \n", myid);
-    printf("    Vector is NULL \n \n");
-    return(1);
-  }
-
-  if (N_VGetHostArrayPointer_Raja(Y) == NULL) {
-    printf(">>> FAILED test -- N_VMake_Raja, Proc %d \n", myid);
-    printf("    Vector host data == NULL \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (N_VGetDeviceArrayPointer_Raja(Y) == NULL) {
-    printf(">>> FAILED test -- N_VMake_Raja, Proc %d \n", myid);
-    printf("    Vector device data -= NULL \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  failure += check_ans(NEG_HALF, Y, length);
-
-  if (failure) {
-    printf(">>> FAILED test -- N_VMake_Raja Case 1, Proc %d \n", myid);
-    printf("    Failed N_VConst check \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMake_Raja Case 1 \n");
-  }
-
-  N_VDestroy(Y);
-
-  /* Case 2: data is null */
-  Y = N_VMake_Raja(length, NULL, NULL);
-  if (Y != NULL) {
-    printf(">>> FAILED test -- N_VMake_Raja Case 2, Proc %d \n", myid);
-    printf("    Vector is not NULL \n \n");
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMake_Raja Case 2 \n");
-  }
-
-  N_VDestroy(Y);
-
-  return(failure);
-}
-
-/* --------------------------------------------------------------------
- * Test for the RAJA N_Vector N_VMakeManaged_Raja function. Requires
- * N_VConst to check data. X must be using managed memory.
- */
-
-int Test_N_VMakeManaged_Raja(N_Vector X, sunindextype length, int myid)
-{
-  int failure = 0;
-  realtype *vdata;
-  N_Vector Y;
-
-  if(!N_VIsManagedMemory_Raja(X)) {
-    printf(">>> FAILED test -- N_VIsManagedMemory_Raja, Proc %d \n", myid);
-    return(1);
-  }
-
-  N_VConst(NEG_HALF, X);
-  vdata = N_VGetHostArrayPointer_Raja(X);
-
-  /* Case 1: data is not null */
-  Y = N_VMakeManaged_Raja(length, vdata);
-  if (Y == NULL) {
-    printf(">>> FAILED test -- N_VMakeManaged_Raja, Proc %d \n", myid);
-    printf("    Vector is NULL \n \n");
-    return(1);
-  }
-
-  failure += check_ans(NEG_HALF, Y, length);
-  if (failure) {
-    printf(">>> FAILED test -- N_VMakeManaged_Raja Case 1, Proc %d \n", myid);
-    printf("    Failed N_VConst check \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMakeManaged_Raja Case 1\n");
-  }
-
-  N_VDestroy(Y);
-
-  /* Case 2: data is null */
-  Y = N_VMakeManaged_Raja(length, NULL);
-  if (Y != NULL) {
-    printf(">>> FAILED test -- N_VMakeManaged_Raja Case 2, Proc %d \n", myid);
-    printf("    Vector is not NULL \n \n");
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMakeManaged_Raja Case 2 \n\n");
-  }
-
-  N_VDestroy(Y);
-
-  return(failure);
-}
 
 /* ----------------------------------------------------------------------
  * Implementation specific utility functions for vector tests

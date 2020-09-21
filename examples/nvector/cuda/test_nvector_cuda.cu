@@ -26,12 +26,12 @@
 #include "custom_memory_helper.h"
 #include "test_nvector.h"
 
-/* CUDA vector specific tests */
-static int Test_N_VMake_Cuda(N_Vector X, sunindextype length, int myid);
-static int Test_N_VMakeManaged_Cuda(N_Vector X, sunindextype length, int myid);
+/* Private custom allocator functions */
+static void* sunalloc(size_t);
+static void sunfree(void* ptr);
 
 /* CUDA vector variants */
-enum mem_type { UNMANAGED, MANAGED, CUSTOM };
+enum mem_type { UNMANAGED, MANAGED, SUNMEMORY, MANAGED_ALLOC };
 enum pol_type { DEFAULT_POL, DEFAULT_POL_W_STREAM, GRID_STRIDE };
 
 /* ----------------------------------------------------------------------
@@ -39,13 +39,13 @@ enum pol_type { DEFAULT_POL, DEFAULT_POL_W_STREAM, GRID_STRIDE };
  * --------------------------------------------------------------------*/
 int main(int argc, char *argv[])
 {
-  int             fails = 0;         /* counter for test failures */
-  int             retval;            /* function return value     */
-  sunindextype    length;            /* vector length             */
-  N_Vector        U, V, X, Y, Z;     /* test vectors              */
-  int             print_timing;      /* turn timing on/off        */
-  int             threadsPerBlock;   /* cuda block size           */
-  cudaStream_t    stream;            /* cuda stream               */
+  int             fails = 0;         /* counter for test failures  */
+  int             retval;            /* function return value      */
+  sunindextype    length;            /* vector length              */
+  N_Vector        U, V, X, Y, Z;     /* test vectors               */
+  int             print_timing;      /* turn timing on/off         */
+  int             threadsPerBlock;   /* cuda block size            */
+  cudaStream_t    stream;            /* cuda stream                */
   int             memtype, policy;
 
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     }
 
     /* test with all memory variants */
-    for (memtype=UNMANAGED; memtype<=CUSTOM; ++memtype) {
+    for (memtype=UNMANAGED; memtype<=MANAGED_ALLOC; ++memtype) {
       SUNMemoryHelper mem_helper = NULL;
 
       printf("=====> Beginning setup\n\n");
@@ -95,16 +95,23 @@ int main(int argc, char *argv[])
         printf("Testing CUDA N_Vector, policy %d\n", policy);
       } else if (memtype==MANAGED) {
         printf("Testing CUDA N_Vector with managed memory, policy %d\n", policy);
-      } else if (memtype==CUSTOM) {
-        printf("Testing CUDA N_Vector with custom allocator, policy %d\n", policy);
+      } else if (memtype==MANAGED_ALLOC) {
+        printf("Testing CUDA N_Vector with user allocator, policy %d\n", policy);
+      } else if (memtype==SUNMEMORY) {
+        printf("Testing CUDA N_Vector with SUNMemoryHelper, policy %d\n", policy);
         mem_helper = MyMemoryHelper();
       }
       printf("Vector length: %ld \n", (long int) length);
 
       /* Create new vectors */
-      if (memtype == UNMANAGED)    X = N_VNew_Cuda(length);
-      else if (memtype == MANAGED) X = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  X = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
+      if (memtype == UNMANAGED)
+        X = N_VNew_Cuda(length);
+      else if (memtype == MANAGED)
+        X = N_VNewManaged_Cuda(length);
+      else if (memtype == MANAGED_ALLOC)
+        X = N_VMakeWithManagedAllocator_Cuda(length, sunalloc, sunfree);
+      else if (memtype == SUNMEMORY)
+        X = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
       if (X == NULL) {
         delete stream_exec_policy;
         delete reduce_exec_policy;
@@ -210,9 +217,7 @@ int main(int argc, char *argv[])
       printf("\nTesting fused and vector array operations (disabled):\n\n");
 
       /* create vector and disable all fused and vector array operations */
-      if (memtype == UNMANAGED)    U = N_VNew_Cuda(length);
-      else if (memtype == MANAGED) U = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  U = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
+      U = N_VClone(X);
       if (U == NULL) {
         N_VDestroy(X);
         N_VDestroy(Y);
@@ -253,9 +258,7 @@ int main(int argc, char *argv[])
       printf("\nTesting fused and vector array operations (enabled):\n\n");
 
       /* create vector and enable all fused and vector array operations */
-      if (memtype == UNMANAGED)    V = N_VNew_Cuda(length);
-      else if (memtype == MANAGED) V = N_VNewManaged_Cuda(length);
-      else if (memtype == CUSTOM)  V = N_VNewWithMemHelp_Cuda(length, SUNFALSE, mem_helper);
+      V = N_VClone(X);
       retval = N_VEnableFusedOps_Cuda(V, SUNTRUE);
       if (V == NULL) {
         N_VDestroy(X);
@@ -308,14 +311,6 @@ int main(int argc, char *argv[])
       if (length >= 7) fails += Test_N_VConstrMaskLocal(X, Y, Z, length, 0);
       fails += Test_N_VMinQuotientLocal(X, Y, length, 0);
 
-      /* CUDA specific tests */
-      printf("\nTesting cuda vector specific operations:\n\n");
-      if (memtype==UNMANAGED) {
-        fails += Test_N_VMake_Cuda(X, length, 0);
-      } else if (memtype==MANAGED) {
-        fails += Test_N_VMakeManaged_Cuda(X, length, 0);
-      }
-
       printf("\n=====> Beginning teardown\n");
 
       /* Free vectors */
@@ -348,138 +343,6 @@ int main(int argc, char *argv[])
   cudaDeviceSynchronize();
   cudaDeviceReset();
   return(fails);
-}
-
-
-/* ----------------------------------------------------------------------
- * CUDA specific tests
- * --------------------------------------------------------------------*/
-
-/* --------------------------------------------------------------------
- * Test for the CUDA N_Vector N_VMake_Cuda function. Requires N_VConst
- * to check data.
- */
-int Test_N_VMake_Cuda(N_Vector X, sunindextype length, int myid)
-{
-  int failure = 0;
-  realtype *h_data, *d_data;
-  N_Vector Y;
-
-  N_VConst(NEG_HALF, X);
-  N_VCopyFromDevice_Cuda(X);
-
-  h_data = N_VGetHostArrayPointer_Cuda(X);
-  d_data = N_VGetDeviceArrayPointer_Cuda(X);
-
-  /* Case 1: h_data and d_data are not null */
-  Y = N_VMake_Cuda(length, h_data, d_data);
-  if (Y == NULL) {
-    printf(">>> FAILED test -- N_VMake_Cuda, Proc %d \n", myid);
-    printf("    Vector is NULL \n \n");
-    return(1);
-  }
-
-  if (N_VGetHostArrayPointer_Cuda(Y) == NULL) {
-    printf(">>> FAILED test -- N_VMake_Cuda, Proc %d \n", myid);
-    printf("    Vector host data == NULL \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (N_VGetDeviceArrayPointer_Cuda(Y) == NULL) {
-    printf(">>> FAILED test -- N_VMake_Cuda, Proc %d \n", myid);
-    printf("    Vector device data -= NULL \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  failure += check_ans(NEG_HALF, Y, length);
-
-  if (failure) {
-    printf(">>> FAILED test -- N_VMake_Cuda Case 1, Proc %d \n", myid);
-    printf("    Failed N_VConst check \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMake_Cuda Case 1 \n");
-  }
-
-  N_VDestroy(Y);
-
-  /* Case 2: data is null */
-  Y = N_VMake_Cuda(length, NULL, NULL);
-  if (Y != NULL) {
-    printf(">>> FAILED test -- N_VMake_Cuda Case 2, Proc %d \n", myid);
-    printf("    Vector is not NULL \n \n");
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMake_Cuda Case 2 \n");
-  }
-
-  N_VDestroy(Y);
-
-  return(failure);
-}
-
-/* --------------------------------------------------------------------
- * Test for the CUDA N_Vector N_VMakeManaged_Cuda function. Requires
- * N_VConst to check data. X must be using managed memory.
- */
-int Test_N_VMakeManaged_Cuda(N_Vector X, sunindextype length, int myid)
-{
-  int failure = 0;
-  realtype *vdata;
-  N_Vector Y;
-
-  if(!N_VIsManagedMemory_Cuda(X)) {
-    printf(">>> FAILED test -- N_VIsManagedMemory_Cuda, Proc %d \n", myid);
-    return(1);
-  }
-
-  N_VConst(NEG_HALF, X);
-  vdata = N_VGetHostArrayPointer_Cuda(X);
-
-  /* Case 1: data is not null */
-  Y = N_VMakeManaged_Cuda(length, vdata);
-  if (Y == NULL) {
-    printf(">>> FAILED test -- N_VMakeManaged_Cuda, Proc %d \n", myid);
-    printf("    Vector is NULL \n \n");
-    return(1);
-  }
-
-  failure += check_ans(NEG_HALF, Y, length);
-  if (failure) {
-    printf(">>> FAILED test -- N_VMakeManaged_Cuda Case 1, Proc %d \n", myid);
-    printf("    Failed N_VConst check \n \n");
-    N_VDestroy(Y);
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMakeManaged_Cuda Case 1\n");
-  }
-
-  N_VDestroy(Y);
-
-  /* Case 2: data is null */
-  Y = N_VMakeManaged_Cuda(length, NULL);
-  if (Y != NULL) {
-    printf(">>> FAILED test -- N_VMakeManaged_Cuda Case 2, Proc %d \n", myid);
-    printf("    Vector is not NULL \n \n");
-    return(1);
-  }
-
-  if (myid == 0) {
-    printf("PASSED test -- N_VMakeManaged_Cuda Case 2 \n");
-  }
-
-  N_VDestroy(Y);
-
-  return(failure);
 }
 
 /* ----------------------------------------------------------------------
@@ -550,4 +413,21 @@ void sync_device()
   /* sync with GPU */
   cudaDeviceSynchronize();
   return;
+}
+
+void* sunalloc(size_t mem_size)
+{
+  void* ptr;
+  cudaError_t err;
+  err = cudaMallocManaged(&ptr, mem_size);
+  if (err != cudaSuccess) {
+    printf("Error in sunalloc\n");
+    ptr = NULL;
+  }
+  return ptr;
+}
+
+void sunfree(void* ptr)
+{
+  cudaFree(ptr);
 }

@@ -47,9 +47,8 @@ the "SUNDIALS Release History" appendix of the CVODE User Guide.
 
 ## References
 
-* A. C. Hindmarsh, R. Serban, C. J. Balos, D. J. Gardner,
-  D. R. Reynolds and C. S. Woodward,
-  "User Documentation for CVODE v5.4.0,"
+* A. C. Hindmarsh, R. Serban, C. J. Balos, D. J. Gardner, D. R. Reynolds
+  and C. S. Woodward, "User Documentation for CVODE v5.4.0,"
   LLNL technical report UCRL-SM-208108, Sep 2020.
 
 * A. C. Hindmarsh and R. Serban, "Example Programs for CVODE v5.4.0,"

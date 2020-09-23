@@ -371,7 +371,7 @@ fi
 # example doc
 fn="../doc/arkode/examples/source/conf.py"
 sedi "s/version =.*/version = \'v${ark_ver}\'/" $fn
-sedi "s/release =.*/sun_version = \'v${ark_ver}\'/" $fn
+sedi "s/release =.*/sun_version = \'v${sun_ver}\'/" $fn
 
 fn="../doc/arkode/examples/source/References.rst"
 sedi "/Programs for CVODE/ s/.*/             Programs for CVODE v${cv_ver}. Technical Report/" $fn

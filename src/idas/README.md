@@ -43,7 +43,7 @@ the "SUNDIALS Release History" appendix of the IDAS User Guide.
 
 ## References
 
-* R. Serban, C. Petra, and A. C. Hindmarsh, C. J. Balos, D. J. Gardner,
+* R. Serban, C. Petra, A. C. Hindmarsh, C. J. Balos, D. J. Gardner,
   D. R. Reynolds and C. S. Woodward, "User Documentation for IDAS v4.4.0,"
   LLNL technical report UCRL-SM-234051, Sep 2020.
 

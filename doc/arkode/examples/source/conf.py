@@ -50,7 +50,7 @@ copyright = u'2012-2020, Daniel R. Reynolds, David J. Gardner, Carol S. Woodward
 #
 # The short X.Y version.
 version = 'v4.5.0'
-sun_version = 'v4.5.0'
+sun_version = 'v5.5.0'
 
 # Set the date format (full-month-name day, full-year)
 today_fmt = '%B %d, %Y'

@@ -9,7 +9,7 @@
 # See the top-level LICENSE and NOTICE files for details.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-# SUNDIALS Copyright End-
+# SUNDIALS Copyright End
 # ---------------------------------------------------------------
 # Configures the SUNDIALS config header files:
 #  sundials_config.h and sundials_fconfig.h

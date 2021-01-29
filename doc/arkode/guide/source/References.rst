@@ -159,11 +159,11 @@
            Report UCRL-ID-141558, LLNL, 2000.
 
 .. [HS2017] A.C. Hindmarsh and R. Serban. User Documentation for CVODE
-            v5.6.1. Technical Report UCRL-SM-208108, LLNL, 2020.
+            v5.7.0. Technical Report UCRL-SM-208108, LLNL, 2021.
 
 .. [HSR2017] A.C. Hindmarsh, R. Serban and D.R. Reynolds. Example
-             Programs for CVODE v5.6.1. Technical Report
-             UCRL-SM-208110, LLNL, 2020.
+             Programs for CVODE v5.7.0. Technical Report
+             UCRL-SM-208110, LLNL, 2021.
 
 .. [HT1998] A.C. Hindmarsh and A.G. Taylor.  PVODE and KINSOL:
             Parallel Software for Differential and Nonlinear
@@ -217,7 +217,7 @@
 
 .. [R2018] D.R. Reynolds. ARKode Example Documentation. Technical
            Report, Southern Methodist University Center for Scientific
-           Computation, 2020.
+           Computation, 2021.
 
 .. [ROCm] `AMD ROCm Documentation
           <https://rocmdocs.amd.com/en/latest/index.html>`_.

@@ -59,8 +59,8 @@ utilize a zero initial guess.
 A bug was fixed in the ARKODE stepper modules where the stop time may be passed
 after resetting the integrator.
 
-A bug was fixed in `IDASetJacTimesResFn` where the supplied function was used in
-the dense finite difference Jacobian computation rather than the finite
+A bug was fixed in `IDASetJacTimesResFn` in IDAS where the supplied function was
+used in the dense finite difference Jacobian computation rather than the finite
 difference Jacobian-vector product approximation.
 
 A bug was fixed in the KINSOL Picard iteration where the value of

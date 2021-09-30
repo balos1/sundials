@@ -148,6 +148,9 @@ function for use within nonlinear system function evaluations.
 The installed SUNDIALSConfig.cmake file now supports the ``COMPONENTS`` option
 to ``find_package``. The exported targets no longer have IMPORTED_GLOBAL set.
 
+A bug was fixed in :c:func:`SUNMatCopyOps` where the matrix-vector product setup
+function pointer was not copied.
+
 A bug was fixed in the SPBCGS and SPTFQMR solvers for the case where a non-zero
 initial guess and a solution scaling vector are provided. This fix only impacts
 codes using SPBCGS or SPTFQMR as standalone solvers as all SUNDIALS packages

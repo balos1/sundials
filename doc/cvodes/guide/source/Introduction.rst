@@ -168,6 +168,88 @@ Two new optional vector operations, :c:func:`N_VDotProdMultiLocal` and
 :c:func:`N_VDotProdMultiAllReduce`, have been added to support
 low-synchronization methods for Anderson acceleration.
 
+The CUDA, HIP, and SYCL execution policies have been moved from the ``sundials``
+namespace to the ``sundials::cuda``, ``sundials::hip``, and ``sundials::sycl``
+namespaces respectively. Accordingly, the prefixes "Cuda", "Hip", and "Sycl"
+have been removed from the execution policy classes and methods.
+
+The ``Sundials`` namespace used by the Trilinos Tpetra NVector has been replaced
+with the ``sundials::trilinos::nvector_tpetra`` namespace.
+
+The serial, PThreads, PETSc, *hypre*, Parallel, OpenMP_DEV, and OpenMP vector
+functions ``N_VCloneVectorArray_*`` and ``N_VDestroyVectorArray_*`` have been
+deprecated. The generic :c:func:`N_VCloneVectorArray` and
+:c:func:`N_VDestroyVectorArray` functions should be used instead.
+
+The previously deprecated constructor ``N_VMakeWithManagedAllocator_Cuda`` and
+the function ``N_VSetCudaStream_Cuda`` have been removed and replaced with
+:c:func:`N_VNewWithMemHelp_Cuda` and :c:func:`N_VSetKerrnelExecPolicy_Cuda`
+respectively.
+
+The previously deprecated macros ``PVEC_REAL_MPI_TYPE`` and
+``PVEC_INTEGER_MPI_TYPE`` have been removed and replaced with
+``MPI_SUNREALTYPE`` and ``MPI_SUNINDEXTYPE`` respectively.
+
+**SUNLinearSolver**
+
+The following previously deprecated functions have been removed:
+
++-----------------------------+------------------------------------------+
+| Removed                     | Replacement                              |
++=============================+==========================================+
+| ``SUNBandLinearSolver``     | :c:func:`SUNLinSol_Band`                 |
++-----------------------------+------------------------------------------+
+| ``SUNDenseLinearSolver``    | :c:func:`SUNLinSol_Dense`                |
++-----------------------------+------------------------------------------+
+| ``SUNKLU``                  | :c:func:`SUNLinSol_KLU`                  |
++-----------------------------+------------------------------------------+
+| ``SUNKLUReInit``            | :c:func:`SUNLinSol_KLUReInit`            |
++-----------------------------+------------------------------------------+
+| ``SUNKLUSetOrdering``       | :c:func:`SUNLinSol_KLUSetOrdering`       |
++-----------------------------+------------------------------------------+
+| ``SUNLapackBand``           | :c:func:`SUNLinSol_LapackBand`           |
++-----------------------------+------------------------------------------+
+| ``SUNLapackDense``          | :c:func:`SUNLinSol_LapackDense`          |
++-----------------------------+------------------------------------------+
+| ``SUNPCG``                  | :c:func:`SUNLinSol_PCG`                  |
++-----------------------------+------------------------------------------+
+| ``SUNPCGSetPrecType``       | :c:func:`SUNLinSol_PCGSetPrecType`       |
++-----------------------------+------------------------------------------+
+| ``SUNPCGSetMaxl``           | :c:func:`SUNLinSol_PCGSetMaxl`           |
++-----------------------------+------------------------------------------+
+| ``SUNSPBCGS``               | :c:func:`SUNLinSol_SPBCGS`               |
++-----------------------------+------------------------------------------+
+| ``SUNSPBCGSSetPrecType``    | :c:func:`SUNLinSol_SPBCGSSetPrecType`    |
++-----------------------------+------------------------------------------+
+| ``SUNSPBCGSSetMaxl``        | :c:func:`SUNLinSol_SPBCGSSetMaxl`        |
++-----------------------------+------------------------------------------+
+| ``SUNSPFGMR``               | :c:func:`SUNLinSol_SPFGMR`               |
++-----------------------------+------------------------------------------+
+| ``SUNSPFGMRSetPrecType``    | :c:func:`SUNLinSol_SPFGMRSetPrecType`    |
++-----------------------------+------------------------------------------+
+| ``SUNSPFGMRSetGSType``      | :c:func:`SUNLinSol_SPFGMRSetGSType`      |
++-----------------------------+------------------------------------------+
+| ``SUNSPFGMRSetMaxRestarts`` | :c:func:`SUNLinSol_SPFGMRSetMaxRestarts` |
++-----------------------------+------------------------------------------+
+| ``SUNSPGMR``                | :c:func:`SUNLinSol_SPGMR`                |
++-----------------------------+------------------------------------------+
+| ``SUNSPGMRSetPrecType``     | :c:func:`SUNLinSol_SPGMRSetPrecType`     |
++-----------------------------+------------------------------------------+
+| ``SUNSPGMRSetGSType``       | :c:func:`SUNLinSol_SPGMRSetGSType`       |
++-----------------------------+------------------------------------------+
+| ``SUNSPGMRSetMaxRestarts``  | :c:func:`SUNLinSol_SPGMRSetMaxRestarts`  |
++-----------------------------+------------------------------------------+
+| ``SUNSPTFQMR``              | :c:func:`SUNLinSol_SPTFQMR`              |
++-----------------------------+------------------------------------------+
+| ``SUNSPTFQMRSetPrecType``   | :c:func:`SUNLinSol_SPTFQMRSetPrecType`   |
++-----------------------------+------------------------------------------+
+| ``SUNSPTFQMRSetMaxl``       | :c:func:`SUNLinSol_SPTFQMRSetMaxl`       |
++-----------------------------+------------------------------------------+
+| ``SUNSuperLUMT``            | :c:func:`SUNLinSol_SuperLUMT`            |
++-----------------------------+------------------------------------------+
+| ``SUNSuperLUMTSetOrdering`` | :c:func:`SUNLinSol_SuperLUMTSetOrdering` |
++-----------------------------+------------------------------------------+
+
 **CVODES**
 
 Added a new function :c:func:`CVodeGetLinSolveStats` to get the CVODES linear
@@ -178,7 +260,10 @@ to be called by CVODES after every `nst` successfully completed time-steps.
 This is intended to provide a way of monitoring the CVODES statistics
 throughout the simulation.
 
-**Deprecations and name changes**
+The previously deprecated function ``CVodeSetMaxStepsBetweenJac`` has been
+removed and replaced with :c:func:`CVodeSetJacEvalFrequency`.
+
+**Deprecations**
 
 In addition to the deprecations noted elsewhere, many constants, types, and
 functions have been renamed so that they are properly namespaced. The old names
@@ -404,7 +489,6 @@ will be thrown if supported by the compiler):
 In addition, the entire ``sundials_lapack.h`` header file is now deprecated for
 removal in SUNDIALS v7.0.0. Note, this header file is not needed to use the
 SUNDIALS LAPACK linear solvers.
-
 
 Changes in v5.8.0
 -----------------

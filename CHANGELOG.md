@@ -53,6 +53,67 @@ Two new optional vector operations, `N_VDotProdMultiLocal` and
 `N_VDotProdMultiAllReduce`, have been added to support low-synchronization
 methods for Anderson acceleration.
 
+The CUDA, HIP, and SYCL execution policies have been moved from the `sundials`
+namespace to the `sundials::cuda`, `sundials::hip`, and `sundials::sycl`
+namespaces respectively. Accordingly, the prefixes "Cuda", "Hip", and "Sycl"
+have been removed from the execution policy classes and methods.
+
+The `Sundials` namespace used by the Trilinos Tpetra NVector has been replaced
+with the `sundials::trilinos::nvector_tpetra` namespace.
+
+The serial, PThreads, PETSc, *hypre*, Parallel, OpenMP_DEV, and OpenMP vector
+functions `N_VCloneVectorArray_*` and `N_VDestroyVectorArray_*` have been
+deprecated. The generic `N_VCloneVectorArray` and `N_VDestroyVectorArray`
+functions should be used instead.
+
+The previously deprecated constructor `N_VMakeWithManagedAllocator_Cuda` and
+the function `N_VSetCudaStream_Cuda` have been removed and replaced with
+`N_VNewWithMemHelp_Cuda` and `N_VSetKerrnelExecPolicy_Cuda` respectively.
+
+The previously deprecated macros `PVEC_REAL_MPI_TYPE` and
+`PVEC_INTEGER_MPI_TYPE` have been removed and replaced with
+`MPI_SUNREALTYPE` and `MPI_SUNINDEXTYPE` respectively.
+
+### SUNLinearSolver
+
+The following previously deprecated functions have been removed
+
+| Removed                   | Replaced with                    |
+|:--------------------------|:---------------------------------|
+| `SUNBandLinearSolver`     | `SUNLinSol_Band`                 |
+| `SUNDenseLinearSolver`    | `SUNLinSol_Dense`                |
+| `SUNKLU`                  | `SUNLinSol_KLU`                  |
+| `SUNKLUReInit`            | `SUNLinSol_KLUReInit`            |
+| `SUNKLUSetOrdering`       | `SUNLinSol_KLUSetOrdering`       |
+| `SUNLapackBand`           | `SUNLinSol_LapackBand`           |
+| `SUNLapackDense`          | `SUNLinSol_LapackDense`          |
+| `SUNPCG`                  | `SUNLinSol_PCG`                  |
+| `SUNPCGSetPrecType`       | `SUNLinSol_PCGSetPrecType`       |
+| `SUNPCGSetMaxl`           | `SUNLinSol_PCGSetMaxl`           |
+| `SUNSPBCGS`               | `SUNLinSol_SPBCGS`               |
+| `SUNSPBCGSSetPrecType`    | `SUNLinSol_SPBCGSSetPrecType`    |
+| `SUNSPBCGSSetMaxl`        | `SUNLinSol_SPBCGSSetMaxl`        |
+| `SUNSPFGMR`               | `SUNLinSol_SPFGMR`               |
+| `SUNSPFGMRSetPrecType`    | `SUNLinSol_SPFGMRSetPrecType`    |
+| `SUNSPFGMRSetGSType`      | `SUNLinSol_SPFGMRSetGSType`      |
+| `SUNSPFGMRSetMaxRestarts` | `SUNLinSol_SPFGMRSetMaxRestarts` |
+| `SUNSPGMR`                | `SUNLinSol_SPGMR`                |
+| `SUNSPGMRSetPrecType`     | `SUNLinSol_SPGMRSetPrecType`     |
+| `SUNSPGMRSetGSType`       | `SUNLinSol_SPGMRSetGSType`       |
+| `SUNSPGMRSetMaxRestarts`  | `SUNLinSol_SPGMRSetMaxRestarts`  |
+| `SUNSPTFQMR`              | `SUNLinSol_SPTFQMR`              |
+| `SUNSPTFQMRSetPrecType`   | `SUNLinSol_SPTFQMRSetPrecType`   |
+| `SUNSPTFQMRSetMaxl`       | `SUNLinSol_SPTFQMRSetMaxl`       |
+| `SUNSuperLUMT`            | `SUNLinSol_SuperLUMT`            |
+| `SUNSuperLUMTSetOrdering` | `SUNLinSol_SuperLUMTSetOrdering` |
+
+### Fortran Interfaces
+
+The ARKODE, CVODE, IDA, and KINSOL Fortran 77 interface have been removed. See
+the "SUNDIALS Fortran Interface" section in the user guides and the F2003
+example programs for more details using the SUNDIALS Fortran 2003 module
+interfaces.
+
 ### ARKODE
 
 The ARKODE MRIStep module has been extended to support implicit-explicit (IMEX)
@@ -88,6 +149,15 @@ Deprecated ARKODE nonlinear solver predictors: specification of the ARKStep
 `MRIStepSetPredictorMethod`), will output a deprecation warning message.
 These options will be removed in a future release.
 
+The previously deprecated functions `ARKStepSetMaxStepsBetweenLSet` and
+`ARKStepSetMaxStepsBetweenJac` have been removed and replaced with
+`ARKStepSetLSetupFrequency` and `ARKStepSetMaxStepsBetweenJac` respectively.
+
+### CVODE
+
+The previously deprecated function `CVodeSetMaxStepsBetweenJac` has been removed
+and replaced with `CVodeSetJacEvalFrequency`.
+
 ### CVODES
 
 Added a new function `CVodeGetLinSolveStats` to get the CVODES linear solver
@@ -98,6 +168,9 @@ to be called by CVODES after every `nst` successfully completed time-steps.
 This is intended to provide a way of monitoring the CVODES statistics
 throughout the simulation.
 
+The previously deprecated function `CVodeSetMaxStepsBetweenJac` has been removed
+and replaced with `CVodeSetJacEvalFrequency`.
+
 ### KINSOL
 
 New orthogonalization methods were added for use within Anderson acceleration
@@ -105,7 +178,7 @@ in KINSOL. See the "Anderson Acceleration QR Factorization" subsection within
 the mathematical considerations chapter of the user guide and the
 `KINSetOrthAA` function documentation for more details.
 
-### Deprecations and name changes
+### Deprecations
 
 In addition to the deprecations noted elsewhere, many constants, types, and
 functions have been renamed so that they are properly namespaced. The old names

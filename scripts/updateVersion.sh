@@ -341,13 +341,10 @@ sedi "s/sundials_version =.*/sundials_version = \'v${sun_ver}\'/" $fn
 
 # insert new release history row after line 23
 fn="../doc/shared/History.rst"
-new_entry=""
-if [ "${sun_label}" == "" ]; then
-    new_entry="| ${month} ${year} | ${sun_ver}    | ${ark_ver}  | ${cv_ver}            | ${cvs_ver}  | ${ida_ver}            | ${idas_ver} | ${kin_ver}            |"
-else
-    new_entry="| ${month} ${year} | ${sun_ver}    | ${ark_ver}  | ${cv_ver}            | ${cvs_ver}  | ${ida_ver}            | ${idas_ver} | ${kin_ver}            |"
-fi
-divider="+----------+----------+--------+------------------+--------+------------------+-------+------------------+"
+new_entry=$(printf "| %-3s %-4s | %-17s | %-17s | %-17s | %-17s | %-17s | %-17s | %-17s |" \
+    ${month} ${year} ${sun_ver} ${ark_ver} ${cv_ver} ${cvs_ver} ${ida_ver} \
+    ${idas_ver} ${kin_ver})
+divider="+----------+-------------------+-------------------+-------------------+-------------------+-------------------+-------------------+-------------------+"
 sedi '23 a\
 '"${divider}"''$'\n' $fn
 sedi '23 a\

@@ -135,7 +135,7 @@ accept the additional argument. Typically, this handle is the execution stream
 (e.g., a CUDA/HIP stream or SYCL queue) for the operation. The :ref:`CUDA
 <SUNMemory.CUDA>`, :ref:`HIP <SUNMemory.HIP>`, and :ref:`SYCL <SUNMemory.SYCL>`
 implementations have been updated accordingly. Additionally, the constructor
-:c:func:`SUNMemoryHelper_Sycl` has been update to remove the SYCL queue as an
+:c:func:`SUNMemoryHelper_Sycl` has been updated to remove the SYCL queue as an
 input.
 
 **NVector**

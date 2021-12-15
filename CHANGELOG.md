@@ -44,7 +44,7 @@ to accept an opaque handle as the last input. At a minimum, existing
 the additional argument. Typically, this handle is the execution stream (e.g., a
 CUDA/HIP stream or SYCL queue) for the operation. The CUDA, HIP, and SYCL
 `SUNMemoryHelper` implementations have been updated accordingly. Additionally,
-the constructor for the SYCL implementation has been update to remove the SYCL
+the constructor for the SYCL implementation has been updated to remove the SYCL
 queue as an input.
 
 ### NVector
@@ -109,7 +109,7 @@ The following previously deprecated functions have been removed
 
 ### Fortran Interfaces
 
-The ARKODE, CVODE, IDA, and KINSOL Fortran 77 interface have been removed. See
+The ARKODE, CVODE, IDA, and KINSOL Fortran 77 interfaces have been removed. See
 the "SUNDIALS Fortran Interface" section in the user guides and the F2003
 example programs for more details using the SUNDIALS Fortran 2003 module
 interfaces.
@@ -120,14 +120,14 @@ The ARKODE MRIStep module has been extended to support implicit-explicit (IMEX)
 multirate infinitesimal generalized additive Runge-Kutta (MRI-GARK) methods. As
 such, `MRIStepCreate` has been updated to include arguments for the slow
 explicit and slow implicit ODE right-hand side functions. `MRIStepCreate` has
-also been updated to require attaching an MRIStepInnerStepper for evolving the
+also been updated to require attaching an `MRIStepInnerStepper` for evolving the
 fast time scale. `MRIStepReInit` has been similarly updated to take explicit
 and implicit right-hand side functions as input. Codes using explicit or
 implicit MRI methods will need to update `MRIStepCreate` and `MRIStepReInit`
 calls to pass `NULL` for either the explicit or implicit right-hand side
 function as appropriate. If ARKStep is used as the fast time scale integrator,
 codes will need to call `ARKStepCreateMRIStepInnerStepper` to wrap the ARKStep
-memory as an MRIStepInnerStepper object. Additionally, `MRIStepGetNumRhsEvals`
+memory as an `MRIStepInnerStepper` object. Additionally, `MRIStepGetNumRhsEvals`
 has been updated to return the number of slow implicit and explicit function
 evaluations. The coupling table structure `MRIStepCouplingMem` and the
 functions `MRIStepCoupling_Alloc` and `MRIStepCoupling_Create` have also

@@ -38,14 +38,14 @@ enabled judiciously.
 
 ### SUNMemoryHelper
 
-The `SUNMemoryHelper` functions `Alloc`, `Dealloc`, and `Copy` have been
-updated to accept an opaque handle as the last input. At a minimum, existing
-`SUNMemoryHelper` implementations will need to update these functions to
-accept the additional argument. Typically, this handle is the execution stream
-(e.g., a CUDA/HIP stream or SYCL queue) for the operation, but it can also be
-any implementation specific data. The CUDA, HIP, and SYCL `SUNMemoryHelper`
-implementations have been updated accordingly. Additionally, the constructor for
-the SYCL implementation has been update to remove the SYCL queue as an input.
+The `SUNMemoryHelper` functions `Alloc`, `Dealloc`, and `Copy` have been updated
+to accept an opaque handle as the last input. At a minimum, existing
+`SUNMemoryHelper` implementations will need to update these functions to accept
+the additional argument. Typically, this handle is the execution stream (e.g., a
+CUDA/HIP stream or SYCL queue) for the operation. The CUDA, HIP, and SYCL
+`SUNMemoryHelper` implementations have been updated accordingly. Additionally,
+the constructor for the SYCL implementation has been update to remove the SYCL
+queue as an input.
 
 ### NVector
 

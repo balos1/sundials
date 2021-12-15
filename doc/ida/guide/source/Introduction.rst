@@ -75,6 +75,42 @@ Changes from previous versions
 Changes in v6.0.0
 -----------------
 
+**SUNContext**
+
+SUNDIALS v6.0.0 introduces a new :c:type:`SUNContext` object on which all other
+SUNDIALS objects depend. As such, the constructors for all SUNDIALS packages,
+vectors, matrices, linear solvers, nonlinear solvers, and memory helpers have
+been updated to accept a context as the last input. Users upgrading to SUNDIALS
+v6.0.0 will need to call :c:func:`SUNContext_Create` to create a context object
+with before calling any other SUNDIALS library function, and then provide this
+object to other SUNDIALS constructors. The context object has been introduced to
+allow SUNDIALS to provide new features, such as the profiling/instrumentation
+also introduced in this release, while maintaining thread-safety. See the
+documentation section on the :c:type:`SUNContext` for more details.
+
+A script ``upgrade-to-sundials-6-from-5.sh`` has been provided with the release
+(obtainable from the GitHub release page) to help ease the transition to
+SUNDIALS v6.0.0. The script will add a ``SUNCTX_PLACEHOLDER`` argument to all of
+the calls to SUNDIALS constructors that now require a ``SUNContext`` object. It
+can also update deprecated SUNDIALS constants/types to the new names. It can be
+run like this:
+
+.. code-block::
+
+   > ./upgrade-to-sundials-6-from-5.sh <files to update>
+
+**SUNProfiler**
+
+A capability to profile/instrument SUNDIALS library code has been added. This
+can be enabled with the CMake option :cmakeop:`SUNDIALS_BUILD_WITH_PROFILING`. A
+built-in profiler will be used by default, but the `Caliper
+<https://github.com/LLNL/Caliper>`_ library can also be used instead with the
+CMake option :cmakeop:`ENABLE_CALIPER`. See the documentation section on
+profiling for more details.  **WARNING**: Profiling will impact performance, and
+should be enabled judiciously.
+
+**SUNMemoryHelper**
+
 The :c:type:`SUNMemoryHelper` functions :c:func:`SUNMemoryHelper_Alloc`,
 :c:func:`SUNMemoryHelper_Dealloc`, and :c:func:`SUNMemoryHelper_Copy` have been
 updated to accept an opaque handle as the last input. At a minimum, user-defined
@@ -85,6 +121,224 @@ accept the additional argument. Typically, this handle is the execution stream
 implementations have been updated accordingly. Additionally, the constructor
 :c:func:`SUNMemoryHelper_Sycl` has been update to remove the SYCL queue as an
 input.
+
+**NVector**
+
+Two new optional vector operations, :c:func:`N_VDotProdMultiLocal` and
+:c:func:`N_VDotProdMultiAllReduce`, have been added to support
+low-synchronization methods for Anderson acceleration.
+
+**Deprecations and name changes**
+
+In addition to the deprecations noted elsewhere, many constants, types, and
+functions have been renamed so that they are properly namespaced. The old names
+have been deprecated and will be removed in SUNDIALS v7.0.0.
+
+The following constants, macros, and typedefs are now deprecated:
+
++------------------------------+-------------------------------------+
+| Deprecated Name              | New Name                            |
++==============================+=====================================+
+| ``realtype``                 | ``sunrealtype``                     |
++------------------------------+-------------------------------------+
+| ``booleantype``              | ``sunbooleantype``                  |
++------------------------------+-------------------------------------+
+| ``RCONST``                   | ``SUN_RCONST``                      |
++------------------------------+-------------------------------------+
+| ``BIG_REAL``                 | ``SUN_BIG_REAL``                    |
++------------------------------+-------------------------------------+
+| ``SMALL_REAL``               | ``SUN_SMALL_REAL``                  |
++------------------------------+-------------------------------------+
+| ``UNIT_ROUNDOFF``            | ``SUN_UNIT_ROUNDOFF``               |
++------------------------------+-------------------------------------+
+| ``PREC_NONE``                | ``SUN_PREC_NONE``                   |
++------------------------------+-------------------------------------+
+| ``PREC_LEFT``                | ``SUN_PREC_LEFT``                   |
++------------------------------+-------------------------------------+
+| ``PREC_RIGHT``               | ``SUN_PREC_RIGHT``                  |
++------------------------------+-------------------------------------+
+| ``PREC_BOTH``                | ``SUN_PREC_BOTH``                   |
++------------------------------+-------------------------------------+
+| ``MODIFIED_GS``              | ``SUN_MODIFIED_GS``                 |
++------------------------------+-------------------------------------+
+| ``CLASSICAL_GS``             | ``SUN_CLASSICAL_GS``                |
++------------------------------+-------------------------------------+
+| ``ATimesFn``                 | ``SUNATimesFn``                     |
++------------------------------+-------------------------------------+
+| ``PSetupFn``                 | ``SUNPSetupFn``                     |
++------------------------------+-------------------------------------+
+| ``PSolveFn``                 | ``SUNPSolveFn``                     |
++------------------------------+-------------------------------------+
+| ``DlsMat``                   | ``SUNDlsMat``                       |
++------------------------------+-------------------------------------+
+| ``DENSE_COL``                | ``SUNDLS_DENSE_COL``                |
++------------------------------+-------------------------------------+
+| ``DENSE_ELEM``               | ``SUNDLS_DENSE_ELEM``               |
++------------------------------+-------------------------------------+
+| ``BAND_COL``                 | ``SUNDLS_BAND_COL``                 |
++------------------------------+-------------------------------------+
+| ``BAND_COL_ELEM``            | ``SUNDLS_BAND_COL_ELEM``            |
++------------------------------+-------------------------------------+
+| ``BAND_ELEM``                | ``SUNDLS_BAND_ELEM``                |
++------------------------------+-------------------------------------+
+
+In addition, the following functions are now deprecated (compile-time warnings
+will be thrown if supported by the compiler):
+
++---------------------------------+--------------------------------+
+| Deprecated Name                 | New Name                       |
++=================================+================================+
+| ``IDASpilsSetLinearSolver``     | ``IDASetLinearSolver``         |
++---------------------------------+--------------------------------+
+| ``IDASpilsSetPreconditioner``   | ``IDASetPreconditioner``       |
++---------------------------------+--------------------------------+
+| ``IDASpilsSetJacTimes``         | ``IDASetJacTimes``             |
++---------------------------------+--------------------------------+
+| ``IDASpilsSetEpsLin``           | ``IDASetEpsLin``               |
++---------------------------------+--------------------------------+
+| ``IDASpilsSetIncrementFactor``  | ``IDASetIncrementFactor``      |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetWorkSpace``        | ``IDAGetLinWorkSpace``         |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumPrecEvals``     | ``IDAGetNumPrecEvals``         |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumPrecSolves``    | ``IDAGetNumPrecSolves``        |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumLinIters``      | ``IDAGetNumLinIters``          |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumConvFails``     | ``IDAGetNumLinConvFails``      |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumJTSetupEvals``  | ``IDAGetNumJTSetupEvals``      |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumJtimesEvals``   | ``IDAGetNumJtimesEvals``       |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetNumResEvals``      | ``IDAGetNumLinResEvals``       |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetLastFlag``         | ``IDAGetLastLinFlag``          |
++---------------------------------+--------------------------------+
+| ``IDASpilsGetReturnFlagName``   | ``IDAGetLinReturnFlagName``    |
++---------------------------------+--------------------------------+
+| ``IDADlsSetLinearSolver``       | ``IDASetLinearSolver``         |
++---------------------------------+--------------------------------+
+| ``IDADlsSetJacFn``              | ``IDASetJacFn``                |
++---------------------------------+--------------------------------+
+| ``IDADlsGetWorkSpace``          | ``IDAGetLinWorkSpace``         |
++---------------------------------+--------------------------------+
+| ``IDADlsGetNumJacEvals``        | ``IDAGetNumJacEvals``          |
++---------------------------------+--------------------------------+
+| ``IDADlsGetNumResEvals``        | ``IDAGetNumLinResEvals``       |
++---------------------------------+--------------------------------+
+| ``IDADlsGetLastFlag``           | ``IDAGetLastLinFlag``          |
++---------------------------------+--------------------------------+
+| ``IDADlsGetReturnFlagName``     | ``IDAGetLinReturnFlagName``    |
++---------------------------------+--------------------------------+
+| ``DenseGETRF``                  | ``SUNDlsMat_DenseGETRF``       |
++---------------------------------+--------------------------------+
+| ``DenseGETRS``                  | ``SUNDlsMat_DenseGETRS``       |
++---------------------------------+--------------------------------+
+| ``denseGETRF``                  | ``SUNDlsMat_denseGETRF``       |
++---------------------------------+--------------------------------+
+| ``denseGETRS``                  | ``SUNDlsMat_denseGETRS``       |
++---------------------------------+--------------------------------+
+| ``DensePOTRF``                  | ``SUNDlsMat_DensePOTRF``       |
++---------------------------------+--------------------------------+
+| ``DensePOTRS``                  | ``SUNDlsMat_DensePOTRS``       |
++---------------------------------+--------------------------------+
+| ``densePOTRF``                  | ``SUNDlsMat_densePOTRF``       |
++---------------------------------+--------------------------------+
+| ``densePOTRS``                  | ``SUNDlsMat_densePOTRS``       |
++---------------------------------+--------------------------------+
+| ``DenseGEQRF``                  | ``SUNDlsMat_DenseGEQRF``       |
++---------------------------------+--------------------------------+
+| ``DenseORMQR``                  | ``SUNDlsMat_DenseORMQR``       |
++---------------------------------+--------------------------------+
+| ``denseGEQRF``                  | ``SUNDlsMat_denseGEQRF``       |
++---------------------------------+--------------------------------+
+| ``denseORMQR``                  | ``SUNDlsMat_denseORMQR``       |
++---------------------------------+--------------------------------+
+| ``DenseCopy``                   | ``SUNDlsMat_DenseCopy``        |
++---------------------------------+--------------------------------+
+| ``denseCopy``                   | ``SUNDlsMat_denseCopy``        |
++---------------------------------+--------------------------------+
+| ``DenseScale``                  | ``SUNDlsMat_DenseScale``       |
++---------------------------------+--------------------------------+
+| ``denseScale``                  | ``SUNDlsMat_denseScale``       |
++---------------------------------+--------------------------------+
+| ``denseAddIdentity``            | ``SUNDlsMat_denseAddIdentity`` |
++---------------------------------+--------------------------------+
+| ``DenseMatvec``                 | ``SUNDlsMat_DenseMatvec``      |
++---------------------------------+--------------------------------+
+| ``denseMatvec``                 | ``SUNDlsMat_denseMatvec``      |
++---------------------------------+--------------------------------+
+| ``BandGBTRF``                   | ``SUNDlsMat_BandGBTRF``        |
++---------------------------------+--------------------------------+
+| ``bandGBTRF``                   | ``SUNDlsMat_bandGBTRF``        |
++---------------------------------+--------------------------------+
+| ``BandGBTRS``                   | ``SUNDlsMat_BandGBTRS``        |
++---------------------------------+--------------------------------+
+| ``bandGBTRS``                   | ``SUNDlsMat_bandGBTRS``        |
++---------------------------------+--------------------------------+
+| ``BandCopy``                    | ``SUNDlsMat_BandCopy``         |
++---------------------------------+--------------------------------+
+| ``bandCopy``                    | ``SUNDlsMat_bandCopy``         |
++---------------------------------+--------------------------------+
+| ``BandScale``                   | ``SUNDlsMat_BandScale``        |
++---------------------------------+--------------------------------+
+| ``bandScale``                   | ``SUNDlsMat_bandScale``        |
++---------------------------------+--------------------------------+
+| ``bandAddIdentity``             | ``SUNDlsMat_bandAddIdentity``  |
++---------------------------------+--------------------------------+
+| ``BandMatvec``                  | ``SUNDlsMat_BandMatvec``       |
++---------------------------------+--------------------------------+
+| ``bandMatvec``                  | ``SUNDlsMat_bandMatvec``       |
++---------------------------------+--------------------------------+
+| ``ModifiedGS``                  | ``SUNModifiedGS``              |
++---------------------------------+--------------------------------+
+| ``ClassicalGS``                 | ``SUNClassicalGS``             |
++---------------------------------+--------------------------------+
+| ``QRfact``                      | ``SUNQRFact``                  |
++---------------------------------+--------------------------------+
+| ``QRsol``                       | ``SUNQRsol``                   |
++---------------------------------+--------------------------------+
+| ``DlsMat_NewDenseMat``          | ``SUNDlsMat_NewDenseMat``      |
++---------------------------------+--------------------------------+
+| ``DlsMat_NewBandMat``           | ``SUNDlsMat_NewBandMat``       |
++---------------------------------+--------------------------------+
+| ``DestroyMat``                  | ``SUNDlsMat_DestroyMat``       |
++---------------------------------+--------------------------------+
+| ``NewIntArray``                 | ``SUNDlsMat_NewIntArray``      |
++---------------------------------+--------------------------------+
+| ``NewIndexArray``               | ``SUNDlsMat_NewIndexArray``    |
++---------------------------------+--------------------------------+
+| ``NewRealArray``                | ``SUNDlsMat_NewRealArray``     |
++---------------------------------+--------------------------------+
+| ``DestroyArray``                | ``SUNDlsMat_DestroyArray``     |
++---------------------------------+--------------------------------+
+| ``AddIdentity``                 | ``SUNDlsMat_AddIdentity``      |
++---------------------------------+--------------------------------+
+| ``SetToZero``                   | ``SUNDlsMat_SetToZero``        |
++---------------------------------+--------------------------------+
+| ``PrintMat``                    | ``SUNDlsMat_PrintMat``         |
++---------------------------------+--------------------------------+
+| ``newDenseMat``                 | ``SUNDlsMat_newDenseMat``      |
++---------------------------------+--------------------------------+
+| ``newBandMat``                  | ``SUNDlsMat_newBandMat``       |
++---------------------------------+--------------------------------+
+| ``destroyMat``                  | ``SUNDlsMat_destroyMat``       |
++---------------------------------+--------------------------------+
+| ``newIntArray``                 | ``SUNDlsMat_newIntArray``      |
++---------------------------------+--------------------------------+
+| ``newIndexArray``               | ``SUNDlsMat_newIndexArray``    |
++---------------------------------+--------------------------------+
+| ``newRealArray``                | ``SUNDlsMat_newRealArray``     |
++---------------------------------+--------------------------------+
+| ``destroyArray``                | ``SUNDlsMat_destroyArray``     |
++---------------------------------+--------------------------------+
+
+In addition, the entire ``sundials_lapack.h`` header file is now deprecated for
+removal in SUNDIALS v7.0.0. Note, this header file is not needed to use the
+SUNDIALS LAPACK linear solvers.
+
 
 Changes in v5.8.0
 -----------------

@@ -5,23 +5,36 @@
 ### SUNContext
 
 SUNDIALS v6.0.0 introduces a new `SUNContext` object on which all other SUNDIALS
-objects depend. Users upgrading to SUNDIALS 6.0.0 will need to create a
-`SUNContext` object before calling any other SUNDIALS library function, and then
-provide this object to other SUNDIALS constructors. The `SUNContext` object has
-been introduced to allow SUNDIALS to provide new features, such as the
-profiling/instrumentation also introduced in this release, while maintaining
-thread-safety. See the documentation section on the `SUNContext` for more
-details.
+objects depend. As such, the constructors for all SUNDIALS packages, vectors,
+matrices, linear solvers, nonlinear solvers, and memory helpers have been
+updated to accept a context as the last input. Users upgrading to SUNDIALS
+v6.0.0 will need to call `SUNContext_Create` to create a context object with
+before calling any other SUNDIALS library function, and then provide this object
+to other SUNDIALS constructors. The context object has been introduced to allow
+SUNDIALS to provide new features, such as the profiling/instrumentation also
+introduced in this release, while maintaining thread-safety. See the
+documentation section on the `SUNContext` for more details.
+
+A script `upgrade-to-sundials-6-from-5.sh` has been provided with the release
+(obtainable from the GitHub release page) to help ease the transition to
+SUNDIALS v6.0.0. The script will add a `SUNCTX_PLACEHOLDER` argument to all of
+the calls to SUNDIALS constructors that now require a `SUNContext` object. It
+can also update deprecated SUNDIALS constants/types to the new names. It can be
+run like this:
+
+```
+> ./upgrade-to-sundials-6-from-5.sh <files to update>
+```
 
 ### SUNProfiler
 
 A capability to profile/instrument SUNDIALS library code has been added. This
-can be enabled with the CMake option `SUNDIALS_BUILD_WITH_PROFILING=TRUE`. A
-built-in profiler will be used by default, but the
+can be enabled with the CMake option `SUNDIALS_BUILD_WITH_PROFILING`. A built-in
+profiler will be used by default, but the
 [Caliper](https://github.com/LLNL/Caliper) library can also be used instead with
-the CMake option `ENABLE_CALIPER=TRUE`.  See the documentation section on
-profiling for more details.  **WARNING**: Profiling will impact performance, and
-should be enabled judiciously.
+the CMake option `ENABLE_CALIPER`. See the documentation section on profiling
+for more details.  **WARNING**: Profiling will impact performance, and should be
+enabled judiciously.
 
 ### SUNMemoryHelper
 
@@ -91,19 +104,6 @@ New orthogonalization methods were added for use within Anderson acceleration
 in KINSOL. See the "Anderson Acceleration QR Factorization" subsection within
 the mathematical considerations chapter of the user guide and the
 `KINSetOrthAA` function documentation for more details.
-
-### Transitioning to SUNDIALS 6.0.0
-
-A script `upgrade-to-sundials-6-from-5.sh` has been provided with the release
-(obtainable from the GitHub release page) to help ease the transition to
-SUNDIALS v6.0.0. The script will add a `SUNCTX_PLACEHOLDER` argument to all of
-the calls to SUNDIALS constructors that now require a `SUNContext` object. It
-can also update deprecated SUNDIALS constants/types to the new names. It can be
-run like this:
-
-```
-> ./upgrade-to-sundials-6-from-5.sh <files to update>
-```
 
 ### Deprecations and name changes
 
@@ -182,7 +182,7 @@ The following constants, macros, and  typedefs are now deprecated:
 | `DORMAND_PRINCE_7_4_5`     | `ARKODE_DORMAND_PRINCE_7_4_5`     |
 | `ARK548L2SA_ERK_8_4_5`     | `ARKODE_ARK548L2SA_ERK_8_4_5`     |
 | `VERNER_8_5_6`             | `ARKODE_VERNER_8_5_6`             |
-| `FEHLBERG_13_7_8 `         | `ARKODE_FEHLBERG_13_7_8`          |
+| `FEHLBERG_13_7_8`          | `ARKODE_FEHLBERG_13_7_8`          |
 | `KNOTH_WOLKE_3_3`          | `ARKODE_KNOTH_WOLKE_3_3`          |
 | `ARK437L2SA_ERK_7_3_4`     | `ARKODE_ARK437L2SA_ERK_7_3_4`     |
 | `ARK548L2SAb_ERK_8_4_5`    | `ARKODE_ARK548L2SAb_ERK_8_4_5`    |
@@ -253,57 +253,6 @@ will be thrown if supported by the compiler):
 | `CVDlsGetNumRhsEvals`         | `CVodeGetNumLinRhsEvals`     |
 | `CVDlsGetLastFlag`            | `CVodeGetLastLinFlag`        |
 | `CVDlsGetReturnFlagName`      | `CVodeGetLinReturnFlagName`  |
-| `DenseGETRF`                  | `SUNDlsMat_DenseGETRF`       |
-| `DenseGETRS`                  | `SUNDlsMat_DenseGETRS`       |
-| `denseGETRF`                  | `SUNDlsMat_denseGETRF`       |
-| `denseGETRS`                  | `SUNDlsMat_denseGETRS`       |
-| `DensePOTRF`                  | `SUNDlsMat_DensePOTRF`       |
-| `DensePOTRS`                  | `SUNDlsMat_DensePOTRS`       |
-| `densePOTRF`                  | `SUNDlsMat_densePOTRF`       |
-| `densePOTRS`                  | `SUNDlsMat_densePOTRS`       |
-| `DenseGEQRF`                  | `SUNDlsMat_DenseGEQRF`       |
-| `DenseORMQR`                  | `SUNDlsMat_DenseORMQR`       |
-| `denseGEQRF`                  | `SUNDlsMat_denseGEQRF`       |
-| `denseORMQR`                  | `SUNDlsMat_denseORMQR`       |
-| `DenseCopy`                   | `SUNDlsMat_DenseCopy`        |
-| `denseCopy`                   | `SUNDlsMat_denseCopy`        |
-| `DenseScale`                  | `SUNDlsMat_DenseScale`       |
-| `denseScale`                  | `SUNDlsMat_denseScale`       |
-| `denseAddIdentity`            | `SUNDlsMat_denseAddIdentity` |
-| `DenseMatvec`                 | `SUNDlsMat_DenseMatvec`      |
-| `denseMatvec`                 | `SUNDlsMat_denseMatvec`      |
-| `BandGBTRF`                   | `SUNDlsMat_BandGBTRF`        |
-| `bandGBTRF`                   | `SUNDlsMat_bandGBTRF`        |
-| `BandGBTRS`                   | `SUNDlsMat_BandGBTRS`        |
-| `bandGBTRS`                   | `SUNDlsMat_bandGBTRS`        |
-| `BandCopy`                    | `SUNDlsMat_BandCopy`         |
-| `bandCopy`                    | `SUNDlsMat_bandCopy`         |
-| `BandScale`                   | `SUNDlsMat_BandScale`        |
-| `bandScale`                   | `SUNDlsMat_bandScale`        |
-| `bandAddIdentity`             | `SUNDlsMat_bandAddIdentity`  |
-| `BandMatvec`                  | `SUNDlsMat_BandMatvec`       |
-| `bandMatvec`                  | `SUNDlsMat_bandMatvec`       |
-| `ModifiedGS`                  | `SUNModifiedGS`              |
-| `ClassicalGS`                 | `SUNClassicalGS`             |
-| `QRfact`                      | `SUNQRFact`                  |
-| `QRsol`                       | `SUNQRsol`                   |
-| `DlsMat_NewDenseMat`          | `SUNDlsMat_NewDenseMat`      |
-| `DlsMat_NewBandMat`           | `SUNDlsMat_NewBandMat`       |
-| `DestroyMat`                  | `SUNDlsMat_DestroyMat`       |
-| `NewIntArray`                 | `SUNDlsMat_NewIntArray`      |
-| `NewIndexArray`               | `SUNDlsMat_NewIndexArray`    |
-| `NewRealArray`                | `SUNDlsMat_NewRealArray`     |
-| `DestroyArray`                | `SUNDlsMat_DestroyArray`     |
-| `AddIdentity`                 | `SUNDlsMat_AddIdentity`      |
-| `SetToZero`                   | `SUNDlsMat_SetToZero`        |
-| `PrintMat`                    | `SUNDlsMat_PrintMat`         |
-| `newDenseMat`                 | `SUNDlsMat_newDenseMat`      |
-| `newBandMat`                  | `SUNDlsMat_newBandMat`       |
-| `destroyMat`                  | `SUNDlsMat_destroyMat`       |
-| `newIntArray`                 | `SUNDlsMat_newIntArray`      |
-| `newIndexArray`               | `SUNDlsMat_newIndexArray`    |
-| `newRealArray`                | `SUNDlsMat_newRealArray`     |
-| `destroyArray`                | `SUNDlsMat_destroyArray`     |
 | `KINDlsSetLinearSolver`       | `KINSetLinearSolver`         |
 | `KINDlsSetJacFn`              | `KINSetJacFn`                |
 | `KINDlsGetWorkSpace`          | `KINGetLinWorkSpace`         |
@@ -355,6 +304,57 @@ will be thrown if supported by the compiler):
 | `IDADlsSetLinearSolverB`      | `IDASetLinearSolverB`        |
 | `IDADlsSetJacFnB`             | `IDASetJacFnB`               |
 | `IDADlsSetJacFnBS`            | `IDASetJacFnBS`              |
+| `DenseGETRF`                  | `SUNDlsMat_DenseGETRF`       |
+| `DenseGETRS`                  | `SUNDlsMat_DenseGETRS`       |
+| `denseGETRF`                  | `SUNDlsMat_denseGETRF`       |
+| `denseGETRS`                  | `SUNDlsMat_denseGETRS`       |
+| `DensePOTRF`                  | `SUNDlsMat_DensePOTRF`       |
+| `DensePOTRS`                  | `SUNDlsMat_DensePOTRS`       |
+| `densePOTRF`                  | `SUNDlsMat_densePOTRF`       |
+| `densePOTRS`                  | `SUNDlsMat_densePOTRS`       |
+| `DenseGEQRF`                  | `SUNDlsMat_DenseGEQRF`       |
+| `DenseORMQR`                  | `SUNDlsMat_DenseORMQR`       |
+| `denseGEQRF`                  | `SUNDlsMat_denseGEQRF`       |
+| `denseORMQR`                  | `SUNDlsMat_denseORMQR`       |
+| `DenseCopy`                   | `SUNDlsMat_DenseCopy`        |
+| `denseCopy`                   | `SUNDlsMat_denseCopy`        |
+| `DenseScale`                  | `SUNDlsMat_DenseScale`       |
+| `denseScale`                  | `SUNDlsMat_denseScale`       |
+| `denseAddIdentity`            | `SUNDlsMat_denseAddIdentity` |
+| `DenseMatvec`                 | `SUNDlsMat_DenseMatvec`      |
+| `denseMatvec`                 | `SUNDlsMat_denseMatvec`      |
+| `BandGBTRF`                   | `SUNDlsMat_BandGBTRF`        |
+| `bandGBTRF`                   | `SUNDlsMat_bandGBTRF`        |
+| `BandGBTRS`                   | `SUNDlsMat_BandGBTRS`        |
+| `bandGBTRS`                   | `SUNDlsMat_bandGBTRS`        |
+| `BandCopy`                    | `SUNDlsMat_BandCopy`         |
+| `bandCopy`                    | `SUNDlsMat_bandCopy`         |
+| `BandScale`                   | `SUNDlsMat_BandScale`        |
+| `bandScale`                   | `SUNDlsMat_bandScale`        |
+| `bandAddIdentity`             | `SUNDlsMat_bandAddIdentity`  |
+| `BandMatvec`                  | `SUNDlsMat_BandMatvec`       |
+| `bandMatvec`                  | `SUNDlsMat_bandMatvec`       |
+| `ModifiedGS`                  | `SUNModifiedGS`              |
+| `ClassicalGS`                 | `SUNClassicalGS`             |
+| `QRfact`                      | `SUNQRFact`                  |
+| `QRsol`                       | `SUNQRsol`                   |
+| `DlsMat_NewDenseMat`          | `SUNDlsMat_NewDenseMat`      |
+| `DlsMat_NewBandMat`           | `SUNDlsMat_NewBandMat`       |
+| `DestroyMat`                  | `SUNDlsMat_DestroyMat`       |
+| `NewIntArray`                 | `SUNDlsMat_NewIntArray`      |
+| `NewIndexArray`               | `SUNDlsMat_NewIndexArray`    |
+| `NewRealArray`                | `SUNDlsMat_NewRealArray`     |
+| `DestroyArray`                | `SUNDlsMat_DestroyArray`     |
+| `AddIdentity`                 | `SUNDlsMat_AddIdentity`      |
+| `SetToZero`                   | `SUNDlsMat_SetToZero`        |
+| `PrintMat`                    | `SUNDlsMat_PrintMat`         |
+| `newDenseMat`                 | `SUNDlsMat_newDenseMat`      |
+| `newBandMat`                  | `SUNDlsMat_newBandMat`       |
+| `destroyMat`                  | `SUNDlsMat_destroyMat`       |
+| `newIntArray`                 | `SUNDlsMat_newIntArray`      |
+| `newIndexArray`               | `SUNDlsMat_newIndexArray`    |
+| `newRealArray`                | `SUNDlsMat_newRealArray`     |
+| `destroyArray`                | `SUNDlsMat_destroyArray`     |
 
 In addition, the entire `sundials_lapack.h` header file is now deprecated for
 removal in SUNDIALS v7.0.0. Note, this header file is not needed to use the

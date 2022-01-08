@@ -88,7 +88,7 @@ applications written in Fortran.
 Changes from previous versions
 ==============================
 
-Changes in vx.x.x
+Changes in v6.1.0
 -----------------
 
 Additionally export ``SUNDIALS::<lib>`` targets with no static/shared suffix for

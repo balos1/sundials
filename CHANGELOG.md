@@ -1,6 +1,6 @@
 # SUNDIALS Changelog
 
-## Changes to SUNDIALS in release x.x.x
+## Changes to SUNDIALS in release 6.1.0
 
 Additionally export `SUNDIALS::<lib>` targets with no static/shared suffix for
 use within the build directory (this mirrors how the targets are exported upon

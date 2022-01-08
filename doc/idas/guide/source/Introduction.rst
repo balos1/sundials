@@ -86,7 +86,7 @@ integrate any final-condition ODE dependent on the solution of the original IVP
 Changes from previous versions
 ==============================
 
-Changes in vx.x.x
+Changes in v5.1.0
 -----------------
 
 Additionally export ``SUNDIALS::<lib>`` targets with no static/shared suffix for

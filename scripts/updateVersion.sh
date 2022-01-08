@@ -309,7 +309,7 @@ do
     sedi "/Example Programs for KINSOL v/ s/v.*/v${kin_ver}}},/"   $fn
     # update dates for user guides and example doc by checking lines between the
     # first and second latex comment patterns
-    sedi "/% CURRENT.*/,/% ORIGINAL.*/ s/year=.*/year=${year}/" $fn
+    sedi "/% CURRENT.*/,/% ORIGINAL.*/ s/year.*/year        = ${year}/" $fn
 done
 
 # # insert new line in release table

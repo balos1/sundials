@@ -15,7 +15,12 @@
 # ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
-# Find MPI.
+# Setup MPI, OpenMP, and OpenMP offload first as other TPLs may
+# need targets or variables corresponding to these TPLs.
+# ---------------------------------------------------------------
+
+# ---------------------------------------------------------------
+# Find MPI
 # ---------------------------------------------------------------
 
 if(ENABLE_MPI)
@@ -31,6 +36,19 @@ if(ENABLE_OPENMP)
   include(SundialsOpenMP)
   list(APPEND SUNDIALS_TPL_LIST "OPENMP")
 endif()
+
+# ---------------------------------------------------------------
+# Find OpenMP with device offloading
+# --------------------------------------------------------------
+
+if(ENABLE_OPENMP_DEVICE)
+  include(SundialsOpenMP)
+  list(APPEND SUNDIALS_TPL_LIST "OPENMP_DEVICE")
+endif()
+
+# ---------------------------------------------------------------
+# Setup other TPLs (listed in alphabetical order)
+# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
 # Find (and test) the Caliper libraries
@@ -84,15 +102,6 @@ endif()
 if(ENABLE_ONEMKL)
   include(SundialsONEMKL)
   list(APPEND SUNDIALS_TPL_LIST "ONEMKL")
-endif()
-
-# ---------------------------------------------------------------
-# Find OpenMP with device offloading
-# --------------------------------------------------------------
-
-if(ENABLE_OPENMP_DEVICE)
-  include(SundialsOpenMP)
-  list(APPEND SUNDIALS_TPL_LIST "OPENMP_DEVICE")
 endif()
 
 # ---------------------------------------------------------------

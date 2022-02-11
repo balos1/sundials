@@ -107,7 +107,4 @@ if(EXAMPLES_INSTALL)
     DESTINATION
       nvector/hip)
 
-  # add test_install target
-  sundials_add_test_install(nvector hip)
-
 endif(EXAMPLES_INSTALL)

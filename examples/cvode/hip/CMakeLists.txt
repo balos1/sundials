@@ -50,7 +50,7 @@ foreach(example_tuple ${all_examples})
 
   if (NOT TARGET ${example_target})
     # example source files
-    add_executable(${example_target} ${example_target})
+    add_executable(${example_target} ${example})
 
     # folder for IDEs
     set_target_properties(${example_target} PROPERTIES FOLDER "Examples")
@@ -78,12 +78,19 @@ endforeach(example_tuple ${all_examples})
 # Install the targets
 if(EXAMPLES_INSTALL)
 
+  if(SUNDIALS_BUILD_PACKAGE_FUSED_KERNELS)
+    set(_fused_kernels_if_enabled cvode_fused_hip)
+  else()
+    set(_fused_kernels_if_enabled )
+  endif()
+
   sundials_install_examples(cvode all_examples
     CMAKE_TEMPLATE
       cmakelists_HIP_ex.in
     SUNDIALS_TARGETS
       cvode
       nvechip
+      ${_fused_kernels_if_enabled}
     DESTINATION
       cvode/hip)
 

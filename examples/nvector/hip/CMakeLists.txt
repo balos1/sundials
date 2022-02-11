@@ -94,8 +94,6 @@ endforeach(example_tuple ${nvector_hip_examples})
 if(EXAMPLES_INSTALL)
 
   sundials_install_examples(nvector nvector_hip_examples
-    CMAKE_TEMPLATE
-      cmakelists_HIP_ex.in
     SUNDIALS_TARGETS
       nvechip
     EXAMPLES_DEPENDENCIES
@@ -106,6 +104,8 @@ if(EXAMPLES_INSTALL)
       ../test_nvector.c
       ../test_nvector.h
       ${SUNDIALS_SOURCE_DIR}/examples/utilities/custom_memory_helper_gpu.h
+    CMAKE_TEMPLATE
+      cmakelists_HIP_ex.in
     DESTINATION
       nvector/hip)
 

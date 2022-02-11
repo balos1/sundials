@@ -77,6 +77,10 @@ if(EXAMPLES_INSTALL)
 
   sundials_install_examples(nvector_sycl nvector_sycl_examples
     EXAMPLES_DEPENDENCIES
+      test_nvector.c
+      test_nvector.h
+      custom_memory_helper_sycl.h
+    EXTRA_FILES
       ${SUNDIALS_SOURCE_DIR}/examples/nvector/test_nvector.c
       ${SUNDIALS_SOURCE_DIR}/examples/nvector/test_nvector.h
       ${SUNDIALS_SOURCE_DIR}/examples/utilities/custom_memory_helper_sycl.h

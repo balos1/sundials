@@ -86,7 +86,6 @@ if(EXAMPLES_INSTALL)
   sundials_install_examples(sunmatrix_magma sunmatrix_magmadense_examples
     EXAMPLES_DEPENDENCIES
       test_sunmatrix.c
-      test_sunmatrix.h
     EXTRA_FILES
       ${SUNDIALS_SOURCE_DIR}/examples/sunmatrix/test_sunmatrix.c
       ${SUNDIALS_SOURCE_DIR}/examples/sunmatrix/test_sunmatrix.h

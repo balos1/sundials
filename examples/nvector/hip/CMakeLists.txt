@@ -98,8 +98,6 @@ if(EXAMPLES_INSTALL)
       nvechip
     EXAMPLES_DEPENDENCIES
       test_nvector.c
-      test_nvector.h
-      custom_memory_helper_gpu.h
     EXTRA_FILES
       ../test_nvector.c
       ../test_nvector.h

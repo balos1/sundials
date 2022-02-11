@@ -92,4 +92,7 @@ if(EXAMPLES_INSTALL)
       nvector/sycl
     )
 
+  # add test_install target
+  sundials_add_test_install(nvector sycl)
+
 endif()

@@ -144,4 +144,7 @@ if(EXAMPLES_INSTALL)
       )
   endif()
 
+  # add test_install target
+  sundials_add_test_install(nvector cuda)
+
 endif()

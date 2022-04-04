@@ -48,11 +48,20 @@ find_package(CALIPER
 message(STATUS "CALIPER_LIB_DIR:     ${caliper_LIB_DIR}")
 message(STATUS "CALIPER_INCLUDE_DIR: ${caliper_INCLUDE_DIR}")
 
+
+find_package(ADIAK adiak
+             PATHS "${ADIAK_DIR}"
+             NO_DEFAULT_PATH
+             REQUIRED)
+
+message(STATUS "ADIAK_LIB_DIR:     ${adiak_LIB_DIR}")
+message(STATUS "ADIAK_INCLUDE_DIR: ${adiak_INCLUDE_DIR}")
+
 # -----------------------------------------------------------------------------
 # Section 4: Test the TPL
 # -----------------------------------------------------------------------------
 
-if(CALIPER_FOUND AND (NOT CALIPER_WORKS))
+if(CALIPER_FOUND AND ADIAK_FOUND  AND (NOT CALIPER_WORKS))
   # Do any checks which don't require compilation first.
 
   # Create the CALIPER_TEST directory
@@ -83,6 +92,7 @@ if(CALIPER_FOUND AND (NOT CALIPER_WORKS))
   "int main()\n"
   "{\n"
   "  CALI_MARK_FUNCTION_BEGIN;\n"
+  "  adiak_hostname();"
   "  CALI_MARK_FUNCTION_END;\n"
   "  return 0;\n"
   "}\n")

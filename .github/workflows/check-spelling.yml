@@ -27,6 +27,12 @@ jobs:
         with:
           submodules: true
 
+      - name: Checkout correct git ref
+        if: ${{ github.event_name == 'issue_comment' }}
+        run: hub pr checkout ${{ github.event.issue.number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run codespell
         run: |
           ./scripts/spelling.sh

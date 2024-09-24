@@ -100,7 +100,7 @@ typedef int (*CVMonitorFn)(void* cvode_mem, void* user_data);
  * Exported Functions
  * ------------------- */
 
-/* Initialization functions */
+/* Initialzation functions */
 SUNDIALS_EXPORT void* CVodeCreate(int lmm, SUNContext sunctx);
 
 SUNDIALS_EXPORT int CVodeInit(void* cvode_mem, CVRhsFn f, sunrealtype t0,
@@ -114,7 +114,7 @@ SUNDIALS_EXPORT int CVodeSVtolerances(void* cvode_mem, sunrealtype reltol,
                                       N_Vector abstol);
 SUNDIALS_EXPORT int CVodeWFtolerances(void* cvode_mem, CVEwtFn efun);
 
-/* Optional input functions */
+/* Optionl input functions */
 
 SUNDIALS_EXPORT int CVodeSetConstraints(void* cvode_mem, N_Vector constraints);
 SUNDIALS_EXPORT int CVodeSetDeltaGammaMaxLSetup(void* cvode_mem,

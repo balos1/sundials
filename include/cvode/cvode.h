@@ -100,7 +100,7 @@ typedef int (*CVMonitorFn)(void* cvode_mem, void* user_data);
  * Exported Functions
  * ------------------- */
 
-/* Initialization functions */
+/* Initialzation functions */
 SUNDIALS_EXPORT void* CVodeCreate(int lmm, SUNContext sunctx);
 
 SUNDIALS_EXPORT int CVodeInit(void* cvode_mem, CVRhsFn f, sunrealtype t0,

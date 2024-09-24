@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout correct git ref
-        uses: hub pr checkout ${{ github.event.issue.number }}
+        run: hub pr checkout ${{ github.event.issue.number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

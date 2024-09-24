@@ -23,17 +23,9 @@ jobs:
         run: codespell --version
 
       - name: Check out repository code
-        if: github.event_name != 'issue_comment'
         uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: Check out repository code
-        if: github.event_name == 'issue_comment'
-        uses: actions/checkout@v4
-        with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
-          fetch-depth: 0
 
       - name: Run codespell
         run: |
@@ -59,22 +51,13 @@ jobs:
     needs: spelling_check
     runs-on: ubuntu-latest
     steps:
-      # Checkout the GitHub created reference for the PR.
-      # The only way to do this is by using the "issue" number
-      # but that is really the PR number in this context.
-      # This is due to using an `issue_comment` event which
-      # is due to the GitHub Actions API that does not have
-      # a `pull_request_comment` event or something similar.
-      # This leaves us in a detached head state which is corrected
-      # in `apply-style/checkout.sh`
       - name: Checkout repository code
         uses: actions/checkout@v4
-        with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
-          fetch-depth: 0
 
-      - name: Checkout the right git ref
-        run: ./.github/actions/apply-style/checkout.sh
+      - name: Checkout correct git ref
+        uses: hub pr checkout ${{ github.event.issue.number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download the git diff from spelling_check
         uses: actions/download-artifact@v4

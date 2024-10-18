@@ -18,8 +18,6 @@ jobs:
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          #OPENAI.ORG: "<Your organization name under your OpenAI account>"
           PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS: 6 # Increase number of code suggestions
           CONFIG.MODEL: "gpt-4o-mini"
           CONFIG.MODEL_TURBO: "gpt-4o-mini"
-          CONFIG.FALLBACK_MODELS: []
